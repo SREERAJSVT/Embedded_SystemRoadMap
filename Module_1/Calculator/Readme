@@ -1,0 +1,19 @@
+# Calculator Program - Basic Briefing
+
+This project is a simple calculator program written in C. 
+It performs basic arithmetic operations such as addition, subtraction, multiplication, and division. 
+The user is prompted to enter two numbers and select the desired operation. The result is then displayed on the screen.
+
+## Features
+
+- Addition, Subtraction, Multiplication, and Division
+- User-friendly input prompts
+- Console-based interface
+
+## Usage
+
+1. Compile the C source code.
+2. Run the executable.
+3. Follow the on-screen instructions to perform calculations.
+
+This program is intended for educational purposes and demonstrates basic C programming concepts.
