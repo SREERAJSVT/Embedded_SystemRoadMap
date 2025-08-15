@@ -11,7 +11,7 @@ for (int j = 0; j <6; j++)
     printf("Enter employee name for employee %d:\n", j+1);
     scanf(" %49[^\n]", emp[j].name); // Read up to 49 chars, leave space for null terminator
     printf("Enter employee ID for employee %d:\n", j+1);
-    scanf("%d", &emp[j].id); // Pass address of id
+    scanf("%d", &emp[j].id); 
     printf("Enter employee salary for employee %d:\n", j+1);
     scanf("%f", &emp[j].salary);
     while ((ch = getchar()) != '\n' && ch != EOF); // Clear the input buffer
