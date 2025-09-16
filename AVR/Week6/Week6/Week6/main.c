@@ -11,7 +11,8 @@
 int main(void)
 {
 	DDRB=0b00100000;
-	DDRC=0b00000000;
+	 DDRD=0b00000000;
+	 PORTD=0b00000001;
     /* Replace with your application code */
     while (1) 
     {
@@ -25,10 +26,7 @@ int main(void)
 		 {
 		PORTB=0b00000000;
 
-		 }
-
-		 
-		
+		 }		
     }
 }
 

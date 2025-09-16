@@ -20,8 +20,6 @@
 
 <item itemtype="Node" CircId="Node-22" mainComp="false" Pos="156,0" />
 
-<item itemtype="Connector" uid="Connector-10" startpinid="Node-10-2" endpinid="mega328-4-PORTD0" pointList="-44,-72,4,-72" />
-
 <item itemtype="Connector" uid="Connector-9" startpinid="Switch-7-switch0pinN" endpinid="Node-10-0" pointList="-56,-72,-44,-72" />
 
 <item itemtype="Connector" uid="Connector-8" startpinid="Resistor-9-lPin" endpinid="Node-10-1" pointList="4,-140,-44,-140,-44,-72" />
@@ -39,5 +37,7 @@
 <item itemtype="Connector" uid="Connector-50" startpinid="Led-5-rPin" endpinid="Node-22-0" pointList="124,-8,156,-8,156,0" />
 
 <item itemtype="Connector" uid="Connector-51" startpinid="Node-22-2" endpinid="Ground-6-Gnd" pointList="156,0,156,24" />
+
+<item itemtype="Connector" uid="Connector-55" startpinid="Node-10-2" endpinid="mega328-4-PORTB0" pointList="-44,-72,-20,-72,-20,24,4,24" />
 
 </circuit>
