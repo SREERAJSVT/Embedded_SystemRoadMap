@@ -1,0 +1,126 @@
+I included both **Timer0** and **Timer1** versions, explanations, and build instructions.
+
+---
+
+````markdown
+# ATmega328P LED Blink with Timer Delay
+
+This project demonstrates how to blink an LED with a **1-second delay** on the **ATmega328P** (Arduino UNO MCU) using **hardware timers** with prescalers instead of software loops.
+
+---
+
+## ⚙️ Hardware Setup
+- **Microcontroller**: ATmega328P @ 16 MHz (Arduino UNO compatible)
+- **LED**: Onboard LED at **PB5 (Arduino digital pin 13)**
+
+---
+
+## 📂 Project Files
+- `main_timer0.c` → Uses **Timer0** (8-bit) with prescaler = 1024  
+- `main_timer1.c` → Uses **Timer1** (16-bit) with prescaler = 1024 (simpler & recommended)
+
+---
+
+## 📝 Code Explanation
+
+### Timer0 Version
+- Prescaler = 1024 → each tick = 64 µs  
+- Timer0 (8-bit) overflows every `256 × 64 µs = 16.384 ms`  
+- To get 1s, we need about **61 overflows**
+
+```c
+void delay_1s(void)
+{
+    TCCR0A = 0x00;
+    TCCR0B = (1 << CS02) | (1 << CS00);  // Prescaler = 1024
+
+    for (uint8_t i = 0; i < 61; i++)
+    {
+        TCNT0 = 0;                       // Reset counter
+        while (!(TIFR0 & (1 << TOV0)));  // Wait for overflow
+        TIFR0 |= (1 << TOV0);            // Clear flag
+    }
+
+    TCCR0B = 0; // Stop timer
+}
+````
+
+---
+
+### Timer1 Version (Recommended)
+
+* Prescaler = 1024 → tick = 64 µs
+* Timer1 (16-bit) overflows every `65536 × 64 µs = 4.19 s`
+* For 1s, just wait until `TCNT1` reaches **15625**
+
+```c
+void delay_1s(void)
+{
+    TCCR1A = 0x00;
+    TCCR1B = (1 << CS12) | (1 << CS10);  // Prescaler = 1024
+    TCNT1 = 0;                           // Reset counter
+
+    while (TCNT1 < 15625);               // 1 second delay
+
+    TCCR1B = 0;                          // Stop timer
+}
+```
+
+---
+
+### Main Loop (common for both)
+
+```c
+int main(void)
+{
+    DDRB |= (1 << DDB5);   // PB5 output
+
+    while (1)
+    {
+        PORTB ^= (1 << PORTB5); // Toggle LED
+        delay_1s();             // Wait 1 second
+    }
+}
+```
+
+---
+
+## 🔧 Build & Flash
+
+### Compile
+
+```sh
+avr-gcc -mmcu=atmega328p -Os -o main.elf main_timer1.c
+avr-objcopy -O ihex -R .eeprom main.elf main.hex
+```
+
+### Upload (with USBasp or Arduino as ISP)
+
+```sh
+avrdude -c usbasp -p m328p -U flash:w:main.hex
+```
+
+---
+
+## 📊 Comparison
+
+| Timer  | Prescaler | Overflows Needed | Simplicity |
+| ------ | --------- | ---------------- | ---------- |
+| Timer0 | 1024      | 61               | More code  |
+| Timer1 | 1024      | 1                | ✅ Cleaner  |
+
+---
+
+## 🚀 Recommendation
+
+For simple **1s LED blinks**, use **Timer1 with prescaler 1024**.
+Timer0 is better for **short delays** (e.g., \~10–100 ms).
+
+---
+
+```
+
+---
+
+👉 Do you want me to include **both `.c` files** (`main_timer0.c` and `main_timer1.c`) inside the README (like code blocks), or keep them as **separate source files** with just references in the README?
+```

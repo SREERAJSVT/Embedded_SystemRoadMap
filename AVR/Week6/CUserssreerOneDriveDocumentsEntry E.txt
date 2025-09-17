@@ -5,4 +5,4 @@ BlinkWeek5Live
 
 "C:\Users\sreer\OneDrive\Documents\Entry ES\AVR\Week 5\BlinkWeek5Live\BlinkWeek5Live\Debug\BlinkWeek5Live.hex"
 
-avrdude -c arduino -p atmega328p -P COM4 -b 115200 -U flash:w:"C:\Users\sreer\OneDrive\Documents\Entry ES\AVR\Week6\Week6\Week6\Debug\Week6.hex":i
+avrdude -c arduino -p atmega328p -P COM4 -b 115200 -U flash:w:"C:\Users\sreer\OneDrive\Documents\Entry ES\AVR\Week7\Timer_DelayFuction Live\Timer_DelayFuction Live\Debug\Timer_DelayFuction Live.hex":i
