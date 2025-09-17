@@ -9,10 +9,10 @@
 
 void delay_1s(void)
 {
-    // Set prescaler = 1024
+    // Seting prescaler = 1024 Exact manupulation IN 1 Second.
     TCCR1B |= (1 << CS12) | (1 << CS10);  
 
-    // Reset counter
+    // Reset counter tcn1
     TCNT1 = 0;                           
 
     // Wait until Timer1 counts 15625 ticks = 1 second
