@@ -32,8 +32,7 @@ int main()
         scanf("%d", &arr[i]);
     }int size = sizeof(arr) / sizeof(arr[0]);
     int result = second_largest(arr, size);
-    if (result != 0) 90
-
+    if (result != 0)
     {
         printf("The SECOND largest element is %d\n", result);
     } else {
