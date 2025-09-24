@@ -85,7 +85,7 @@ int main(void) {
   8c:	84 b5       	in	r24, 0x24	; 36
   8e:	80 68       	ori	r24, 0x80	; 128
   90:	84 bd       	out	0x24, r24	; 36
-		OCR0A =128;
+		OCR0A =128;//Duty Cycle
   92:	80 e8       	ldi	r24, 0x80	; 128
   94:	87 bd       	out	0x27, r24	; 39
 		TCCR0B |= (1 << CS01) | (1 << CS00);
