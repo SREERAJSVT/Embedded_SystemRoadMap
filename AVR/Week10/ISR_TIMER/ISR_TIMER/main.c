@@ -38,5 +38,5 @@ int main(void)
     }
 }
 
-//HW hw: timer 0 overflow interrupt in ctc mode with OCR0A
+//HW hw: timer 0 overflow interrupt in ctc mode with OCR0A?
 
