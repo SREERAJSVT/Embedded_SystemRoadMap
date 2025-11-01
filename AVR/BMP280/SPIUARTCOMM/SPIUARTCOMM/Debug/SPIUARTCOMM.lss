@@ -1,0 +1,406 @@
+
+SPIUARTCOMM.elf:     file format elf32-avr
+
+Sections:
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 .data         0000007e  00800100  00000234  000002a8  2**0
+                  CONTENTS, ALLOC, LOAD, DATA
+  1 .text         00000234  00000000  00000000  00000074  2**1
+                  CONTENTS, ALLOC, LOAD, READONLY, CODE
+  2 .comment      00000030  00000000  00000000  00000326  2**0
+                  CONTENTS, READONLY
+  3 .note.gnu.avr.deviceinfo 0000003c  00000000  00000000  00000358  2**2
+                  CONTENTS, READONLY
+  4 .debug_aranges 00000098  00000000  00000000  00000394  2**0
+                  CONTENTS, READONLY, DEBUGGING
+  5 .debug_info   00000d9a  00000000  00000000  0000042c  2**0
+                  CONTENTS, READONLY, DEBUGGING
+  6 .debug_abbrev 000008c2  00000000  00000000  000011c6  2**0
+                  CONTENTS, READONLY, DEBUGGING
+  7 .debug_line   00000581  00000000  00000000  00001a88  2**0
+                  CONTENTS, READONLY, DEBUGGING
+  8 .debug_frame  00000124  00000000  00000000  0000200c  2**2
+                  CONTENTS, READONLY, DEBUGGING
+  9 .debug_str    000004bc  00000000  00000000  00002130  2**0
+                  CONTENTS, READONLY, DEBUGGING
+ 10 .debug_loc    00000425  00000000  00000000  000025ec  2**0
+                  CONTENTS, READONLY, DEBUGGING
+ 11 .debug_ranges 00000078  00000000  00000000  00002a11  2**0
+                  CONTENTS, READONLY, DEBUGGING
+
+Disassembly of section .text:
+
+00000000 <__vectors>:
+   0:	0c 94 34 00 	jmp	0x68	; 0x68 <__ctors_end>
+   4:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+   8:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+   c:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+  10:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+  14:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+  18:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+  1c:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+  20:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+  24:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+  28:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+  2c:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+  30:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+  34:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+  38:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+  3c:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+  40:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+  44:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+  48:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+  4c:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+  50:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+  54:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+  58:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+  5c:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+  60:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+  64:	0c 94 49 00 	jmp	0x92	; 0x92 <__bad_interrupt>
+
+00000068 <__ctors_end>:
+  68:	11 24       	eor	r1, r1
+  6a:	1f be       	out	0x3f, r1	; 63
+  6c:	cf ef       	ldi	r28, 0xFF	; 255
+  6e:	d8 e0       	ldi	r29, 0x08	; 8
+  70:	de bf       	out	0x3e, r29	; 62
+  72:	cd bf       	out	0x3d, r28	; 61
+
+00000074 <__do_copy_data>:
+  74:	11 e0       	ldi	r17, 0x01	; 1
+  76:	a0 e0       	ldi	r26, 0x00	; 0
+  78:	b1 e0       	ldi	r27, 0x01	; 1
+  7a:	e4 e3       	ldi	r30, 0x34	; 52
+  7c:	f2 e0       	ldi	r31, 0x02	; 2
+  7e:	02 c0       	rjmp	.+4      	; 0x84 <__do_copy_data+0x10>
+  80:	05 90       	lpm	r0, Z+
+  82:	0d 92       	st	X+, r0
+  84:	ae 37       	cpi	r26, 0x7E	; 126
+  86:	b1 07       	cpc	r27, r17
+  88:	d9 f7       	brne	.-10     	; 0x80 <__do_copy_data+0xc>
+  8a:	0e 94 7f 00 	call	0xfe	; 0xfe <main>
+  8e:	0c 94 18 01 	jmp	0x230	; 0x230 <_exit>
+
+00000092 <__bad_interrupt>:
+  92:	0c 94 00 00 	jmp	0	; 0x0 <__vectors>
+
+00000096 <spi_init>:
+	while(1);
+	return 0;
+}
+// --- SPI and BMP280 Functions ---
+void spi_init(void) {
+	DDRB |= (1 << PB3) | (1 << PB5) | (1 << CS_PIN);
+  96:	84 b1       	in	r24, 0x04	; 4
+  98:	8c 62       	ori	r24, 0x2C	; 44
+  9a:	84 b9       	out	0x04, r24	; 4
+	DDRB &= ~(1 << PB4);
+  9c:	84 b1       	in	r24, 0x04	; 4
+  9e:	8f 7e       	andi	r24, 0xEF	; 239
+  a0:	84 b9       	out	0x04, r24	; 4
+	CS_PORT |= (1 << CS_PIN);
+  a2:	85 b1       	in	r24, 0x05	; 5
+  a4:	84 60       	ori	r24, 0x04	; 4
+  a6:	85 b9       	out	0x05, r24	; 5
+	SPCR = (1 << SPE) | (1 << MSTR) | (1 << SPR0);
+  a8:	81 e5       	ldi	r24, 0x51	; 81
+  aa:	8c bd       	out	0x2c, r24	; 44
+  ac:	08 95       	ret
+
+000000ae <spi_transfer>:
+}
+uint8_t spi_transfer(uint8_t data) {
+	SPDR = data;
+  ae:	8e bd       	out	0x2e, r24	; 46
+	while (!(SPSR & (1 << SPIF)));
+  b0:	0d b4       	in	r0, 0x2d	; 45
+  b2:	07 fe       	sbrs	r0, 7
+  b4:	fd cf       	rjmp	.-6      	; 0xb0 <spi_transfer+0x2>
+	return SPDR;
+  b6:	8e b5       	in	r24, 0x2e	; 46
+}
+  b8:	08 95       	ret
+
+000000ba <bmp280_read_register>:
+uint8_t bmp280_read_register(uint8_t reg_addr) {
+	uint8_t data;
+	CS_PORT &= ~(1 << CS_PIN);
+  ba:	95 b1       	in	r25, 0x05	; 5
+  bc:	9b 7f       	andi	r25, 0xFB	; 251
+  be:	95 b9       	out	0x05, r25	; 5
+	spi_transfer(reg_addr | 0x80);
+  c0:	80 68       	ori	r24, 0x80	; 128
+  c2:	0e 94 57 00 	call	0xae	; 0xae <spi_transfer>
+	data = spi_transfer(0x00);
+  c6:	80 e0       	ldi	r24, 0x00	; 0
+  c8:	0e 94 57 00 	call	0xae	; 0xae <spi_transfer>
+	CS_PORT |= (1 << CS_PIN);
+  cc:	95 b1       	in	r25, 0x05	; 5
+  ce:	94 60       	ori	r25, 0x04	; 4
+  d0:	95 b9       	out	0x05, r25	; 5
+	return data;
+}
+  d2:	08 95       	ret
+
+000000d4 <check_bmp280_connection>:
+uint8_t check_bmp280_connection(void) {
+	uint8_t chip_id = bmp280_read_register(BMP280_REG_CHIPID);
+  d4:	80 ed       	ldi	r24, 0xD0	; 208
+  d6:	0e 94 5d 00 	call	0xba	; 0xba <bmp280_read_register>
+	if (chip_id == BMP280_CHIP_ID_VAL) {
+  da:	88 35       	cpi	r24, 0x58	; 88
+  dc:	11 f4       	brne	.+4      	; 0xe2 <check_bmp280_connection+0xe>
+		return 1;
+  de:	81 e0       	ldi	r24, 0x01	; 1
+  e0:	08 95       	ret
+	}
+	return 0;
+  e2:	80 e0       	ldi	r24, 0x00	; 0
+}
+  e4:	08 95       	ret
+
+000000e6 <setup_led>:
+// --- LED Functions ---
+void setup_led(void) {
+	LED_DDR |= (1 << LED_PIN);
+  e6:	8a b1       	in	r24, 0x0a	; 10
+  e8:	80 68       	ori	r24, 0x80	; 128
+  ea:	8a b9       	out	0x0a, r24	; 10
+  ec:	08 95       	ret
+
+000000ee <turn_on_led>:
+}
+void turn_on_led(void) {
+	LED_PORT |= (1 << LED_PIN);
+  ee:	8b b1       	in	r24, 0x0b	; 11
+  f0:	80 68       	ori	r24, 0x80	; 128
+  f2:	8b b9       	out	0x0b, r24	; 11
+  f4:	08 95       	ret
+
+000000f6 <turn_off_led>:
+}
+void turn_off_led(void) {
+	LED_PORT &= ~(1 << LED_PIN);
+  f6:	8b b1       	in	r24, 0x0b	; 11
+  f8:	8f 77       	andi	r24, 0x7F	; 127
+  fa:	8b b9       	out	0x0b, r24	; 11
+  fc:	08 95       	ret
+
+000000fe <main>:
+void turn_off_led(void);
+uint8_t check_bmp280_connection(void);
+
+int main(void) {
+	// 1. booting animation  Set up the LED and UART for output
+	setup_led();
+  fe:	0e 94 73 00 	call	0xe6	; 0xe6 <setup_led>
+	turn_on_led();
+ 102:	0e 94 77 00 	call	0xee	; 0xee <turn_on_led>
+	#else
+		//round up by default
+		__ticks_dc = (uint32_t)(ceil(fabs(__tmp)));
+	#endif
+
+	__builtin_avr_delay_cycles(__ticks_dc);
+ 106:	2f ef       	ldi	r18, 0xFF	; 255
+ 108:	89 e6       	ldi	r24, 0x69	; 105
+ 10a:	98 e1       	ldi	r25, 0x18	; 24
+ 10c:	21 50       	subi	r18, 0x01	; 1
+ 10e:	80 40       	sbci	r24, 0x00	; 0
+ 110:	90 40       	sbci	r25, 0x00	; 0
+ 112:	e1 f7       	brne	.-8      	; 0x10c <main+0xe>
+ 114:	00 c0       	rjmp	.+0      	; 0x116 <main+0x18>
+ 116:	00 00       	nop
+	_delay_ms(500);
+	turn_off_led();
+ 118:	0e 94 7b 00 	call	0xf6	; 0xf6 <turn_off_led>
+ 11c:	2f ef       	ldi	r18, 0xFF	; 255
+ 11e:	85 ea       	ldi	r24, 0xA5	; 165
+ 120:	9e e0       	ldi	r25, 0x0E	; 14
+ 122:	21 50       	subi	r18, 0x01	; 1
+ 124:	80 40       	sbci	r24, 0x00	; 0
+ 126:	90 40       	sbci	r25, 0x00	; 0
+ 128:	e1 f7       	brne	.-8      	; 0x122 <main+0x24>
+ 12a:	00 c0       	rjmp	.+0      	; 0x12c <main+0x2e>
+ 12c:	00 00       	nop
+	_delay_ms(300);
+	turn_on_led();
+ 12e:	0e 94 77 00 	call	0xee	; 0xee <turn_on_led>
+ 132:	2f ef       	ldi	r18, 0xFF	; 255
+ 134:	89 e6       	ldi	r24, 0x69	; 105
+ 136:	98 e1       	ldi	r25, 0x18	; 24
+ 138:	21 50       	subi	r18, 0x01	; 1
+ 13a:	80 40       	sbci	r24, 0x00	; 0
+ 13c:	90 40       	sbci	r25, 0x00	; 0
+ 13e:	e1 f7       	brne	.-8      	; 0x138 <main+0x3a>
+ 140:	00 c0       	rjmp	.+0      	; 0x142 <main+0x44>
+ 142:	00 00       	nop
+	_delay_ms(500);
+	turn_off_led();
+ 144:	0e 94 7b 00 	call	0xf6	; 0xf6 <turn_off_led>
+ 148:	2f ef       	ldi	r18, 0xFF	; 255
+ 14a:	89 e6       	ldi	r24, 0x69	; 105
+ 14c:	98 e1       	ldi	r25, 0x18	; 24
+ 14e:	21 50       	subi	r18, 0x01	; 1
+ 150:	80 40       	sbci	r24, 0x00	; 0
+ 152:	90 40       	sbci	r25, 0x00	; 0
+ 154:	e1 f7       	brne	.-8      	; 0x14e <main+0x50>
+ 156:	00 c0       	rjmp	.+0      	; 0x158 <main+0x5a>
+ 158:	00 00       	nop
+	_delay_ms(500);
+	turn_off_led();
+ 15a:	0e 94 7b 00 	call	0xf6	; 0xf6 <turn_off_led>
+	turn_on_led();
+ 15e:	0e 94 77 00 	call	0xee	; 0xee <turn_on_led>
+ 162:	2f ef       	ldi	r18, 0xFF	; 255
+ 164:	89 e6       	ldi	r24, 0x69	; 105
+ 166:	98 e1       	ldi	r25, 0x18	; 24
+ 168:	21 50       	subi	r18, 0x01	; 1
+ 16a:	80 40       	sbci	r24, 0x00	; 0
+ 16c:	90 40       	sbci	r25, 0x00	; 0
+ 16e:	e1 f7       	brne	.-8      	; 0x168 <main+0x6a>
+ 170:	00 c0       	rjmp	.+0      	; 0x172 <main+0x74>
+ 172:	00 00       	nop
+	_delay_ms(500);
+	turn_off_led();
+ 174:	0e 94 7b 00 	call	0xf6	; 0xf6 <turn_off_led>
+ 178:	2f ef       	ldi	r18, 0xFF	; 255
+ 17a:	85 ea       	ldi	r24, 0xA5	; 165
+ 17c:	9e e0       	ldi	r25, 0x0E	; 14
+ 17e:	21 50       	subi	r18, 0x01	; 1
+ 180:	80 40       	sbci	r24, 0x00	; 0
+ 182:	90 40       	sbci	r25, 0x00	; 0
+ 184:	e1 f7       	brne	.-8      	; 0x17e <main+0x80>
+ 186:	00 c0       	rjmp	.+0      	; 0x188 <main+0x8a>
+ 188:	00 00       	nop
+	_delay_ms(300);
+	turn_on_led();
+ 18a:	0e 94 77 00 	call	0xee	; 0xee <turn_on_led>
+ 18e:	2f ef       	ldi	r18, 0xFF	; 255
+ 190:	89 e6       	ldi	r24, 0x69	; 105
+ 192:	98 e1       	ldi	r25, 0x18	; 24
+ 194:	21 50       	subi	r18, 0x01	; 1
+ 196:	80 40       	sbci	r24, 0x00	; 0
+ 198:	90 40       	sbci	r25, 0x00	; 0
+ 19a:	e1 f7       	brne	.-8      	; 0x194 <main+0x96>
+ 19c:	00 c0       	rjmp	.+0      	; 0x19e <main+0xa0>
+ 19e:	00 00       	nop
+	_delay_ms(500);
+	turn_off_led();
+ 1a0:	0e 94 7b 00 	call	0xf6	; 0xf6 <turn_off_led>
+ 1a4:	2f ef       	ldi	r18, 0xFF	; 255
+ 1a6:	89 e6       	ldi	r24, 0x69	; 105
+ 1a8:	98 e1       	ldi	r25, 0x18	; 24
+ 1aa:	21 50       	subi	r18, 0x01	; 1
+ 1ac:	80 40       	sbci	r24, 0x00	; 0
+ 1ae:	90 40       	sbci	r25, 0x00	; 0
+ 1b0:	e1 f7       	brne	.-8      	; 0x1aa <main+0xac>
+ 1b2:	00 c0       	rjmp	.+0      	; 0x1b4 <main+0xb6>
+ 1b4:	00 00       	nop
+	_delay_ms(500);
+	turn_off_led();
+ 1b6:	0e 94 7b 00 	call	0xf6	; 0xf6 <turn_off_led>
+	//end ani
+	UART_Init();
+ 1ba:	0e 94 f8 00 	call	0x1f0	; 0x1f0 <UART_Init>
+
+	UART_TxString("Starting SPI connection check...\r\n");
+ 1be:	80 e0       	ldi	r24, 0x00	; 0
+ 1c0:	91 e0       	ldi	r25, 0x01	; 1
+ 1c2:	0e 94 0b 01 	call	0x216	; 0x216 <UART_TxString>
+
+	// 2. Initialize SPI
+	spi_init();
+ 1c6:	0e 94 4b 00 	call	0x96	; 0x96 <spi_init>
+
+	// 3. Check for the BMP280 sensor connection
+	if (check_bmp280_connection()) {
+ 1ca:	0e 94 6a 00 	call	0xd4	; 0xd4 <check_bmp280_connection>
+ 1ce:	88 23       	and	r24, r24
+ 1d0:	39 f0       	breq	.+14     	; 0x1e0 <main+0xe2>
+		// If connection is successful, print a message and turn on the LED
+		UART_TxString("Success: BMP280 connection established.\r\n");
+ 1d2:	83 e2       	ldi	r24, 0x23	; 35
+ 1d4:	91 e0       	ldi	r25, 0x01	; 1
+ 1d6:	0e 94 0b 01 	call	0x216	; 0x216 <UART_TxString>
+		turn_on_led();		
+ 1da:	0e 94 77 00 	call	0xee	; 0xee <turn_on_led>
+ 1de:	07 c0       	rjmp	.+14     	; 0x1ee <main+0xf0>
+		} else {
+		// If connection fails, print an error and halt
+		UART_TxString("Error: BMP280 not found or connection failed.\r\n");
+ 1e0:	8d e4       	ldi	r24, 0x4D	; 77
+ 1e2:	91 e0       	ldi	r25, 0x01	; 1
+ 1e4:	0e 94 0b 01 	call	0x216	; 0x216 <UART_TxString>
+		turn_off_led();
+ 1e8:	0e 94 7b 00 	call	0xf6	; 0xf6 <turn_off_led>
+ 1ec:	ff cf       	rjmp	.-2      	; 0x1ec <main+0xee>
+ 1ee:	ff cf       	rjmp	.-2      	; 0x1ee <main+0xf0>
+
+000001f0 <UART_Init>:
+#include "UART_H.h"
+
+void UART_Init(void)
+{
+	UBRR0H = (unsigned char)(UBRR_VALUE >> 8);
+ 1f0:	10 92 c5 00 	sts	0x00C5, r1	; 0x8000c5 <__TEXT_REGION_LENGTH__+0x7f80c5>
+	UBRR0L = (unsigned char)UBRR_VALUE;
+ 1f4:	87 e6       	ldi	r24, 0x67	; 103
+ 1f6:	80 93 c4 00 	sts	0x00C4, r24	; 0x8000c4 <__TEXT_REGION_LENGTH__+0x7f80c4>
+	UCSR0B = (1 << TXEN0);                      // Enable transmitter
+ 1fa:	88 e0       	ldi	r24, 0x08	; 8
+ 1fc:	80 93 c1 00 	sts	0x00C1, r24	; 0x8000c1 <__TEXT_REGION_LENGTH__+0x7f80c1>
+	UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);     // 8-bit data
+ 200:	86 e0       	ldi	r24, 0x06	; 6
+ 202:	80 93 c2 00 	sts	0x00C2, r24	; 0x8000c2 <__TEXT_REGION_LENGTH__+0x7f80c2>
+ 206:	08 95       	ret
+
+00000208 <UART_TxChar>:
+}
+
+void UART_TxChar(char data)
+{
+	while (!(UCSR0A & (1 << UDRE0)));
+ 208:	90 91 c0 00 	lds	r25, 0x00C0	; 0x8000c0 <__TEXT_REGION_LENGTH__+0x7f80c0>
+ 20c:	95 ff       	sbrs	r25, 5
+ 20e:	fc cf       	rjmp	.-8      	; 0x208 <UART_TxChar>
+	UDR0 = data;
+ 210:	80 93 c6 00 	sts	0x00C6, r24	; 0x8000c6 <__TEXT_REGION_LENGTH__+0x7f80c6>
+ 214:	08 95       	ret
+
+00000216 <UART_TxString>:
+}
+
+void UART_TxString(const char *str)
+{
+ 216:	cf 93       	push	r28
+ 218:	df 93       	push	r29
+ 21a:	ec 01       	movw	r28, r24
+	while (*str)
+ 21c:	03 c0       	rjmp	.+6      	; 0x224 <UART_TxString+0xe>
+	{
+		UART_TxChar(*str++);
+ 21e:	21 96       	adiw	r28, 0x01	; 1
+ 220:	0e 94 04 01 	call	0x208	; 0x208 <UART_TxChar>
+	UDR0 = data;
+}
+
+void UART_TxString(const char *str)
+{
+	while (*str)
+ 224:	88 81       	ld	r24, Y
+ 226:	81 11       	cpse	r24, r1
+ 228:	fa cf       	rjmp	.-12     	; 0x21e <UART_TxString+0x8>
+	{
+		UART_TxChar(*str++);
+	}
+}
+ 22a:	df 91       	pop	r29
+ 22c:	cf 91       	pop	r28
+ 22e:	08 95       	ret
+
+00000230 <_exit>:
+ 230:	f8 94       	cli
+
+00000232 <__stop_program>:
+ 232:	ff cf       	rjmp	.-2      	; 0x232 <__stop_program>
