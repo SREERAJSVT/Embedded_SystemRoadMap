@@ -1,0 +1,255 @@
+/*
+ * max30102.c
+ *
+ *  Created on: Nov 26, 2025
+ *      Author: sreer
+ */
+#include "max30102.h"
+#include "stm32_f446xx.h" // For I2C_RegDef_t and I2C1 pointer
+#include <stdio.h>
+
+// --- Configuration ---
+#define MAX_TIMEOUT 100000
+#define I2C_PORT I2C1 // Assuming I2C1 is used
+
+// Private I2C Communication Functions (Simplified blocking implementation)
+
+/**
+ * @brief Sends a byte to the MAX30102.
+ * @param reg_addr The address of the register to write to.
+ * @param data The byte to write.
+ */
+static void MAX30102_WriteReg(uint8_t reg_addr, uint8_t data)
+{
+    // 1. Generate START condition
+    I2C_PORT->CR1 |= (1 << 8); // START bit
+    while (!(I2C_PORT->SR1 & (1 << 0))); // Wait for SB (Start Bit)
+
+    // 2. Send slave address + Write bit (0xAE for MAX30102)
+    I2C_PORT->DR = MAX30102_ADDR;
+    while (!(I2C_PORT->SR1 & (1 << 1))); // Wait for ADDR (Address sent)
+
+    // 3. Clear ADDR flag by reading SR2
+    (void)I2C_PORT->SR2;
+
+    // 4. Send register address
+    I2C_PORT->DR = reg_addr;
+    while (!(I2C_PORT->SR1 & (1 << 7))); // Wait for TxE (Data register empty)
+
+    // 5. Send data
+    I2C_PORT->DR = data;
+    while (!(I2C_PORT->SR1 & (1 << 7))); // Wait for TxE
+
+    // 6. Generate STOP condition
+    I2C_PORT->CR1 |= (1 << 9); // STOP bit
+}
+
+/**
+ * @brief Reads a single byte from a MAX30102 register.
+ * @param reg_addr The address of the register to read from.
+ * @return The data read from the register.
+ */
+static uint8_t MAX30102_ReadReg(uint8_t reg_addr)
+{
+    uint8_t data = 0;
+
+    // --- Phase 1: Write Register Address (Master Transmitter) ---
+    // 1. Generate START
+    I2C_PORT->CR1 |= (1 << 8); // START bit
+    while (!(I2C_PORT->SR1 & (1 << 0))); // Wait for SB
+
+    // 2. Send slave address + Write bit
+    I2C_PORT->DR = MAX30102_ADDR;
+    while (!(I2C_PORT->SR1 & (1 << 1))); // Wait for ADDR
+    (void)I2C_PORT->SR2; // Clear ADDR
+
+    // 3. Send register address
+    I2C_PORT->DR = reg_addr;
+    while (!(I2C_PORT->SR1 & (1 << 7))); // Wait for TxE
+
+    // --- Phase 2: Read Data (Master Receiver) ---
+    // 4. Generate REPEATED START
+    I2C_PORT->CR1 |= (1 << 8); // START bit
+    while (!(I2C_PORT->SR1 & (1 << 0))); // Wait for SB
+
+    // 5. Send slave address + Read bit (0xAF)
+    I2C_PORT->DR = MAX30102_ADDR | 0x01; // Set R/W bit to 1
+    while (!(I2C_PORT->SR1 & (1 << 1))); // Wait for ADDR
+
+    // 6. Clear ACK bit for NACK after single byte read
+    I2C_PORT->CR1 &= ~(1 << 10);
+    (void)I2C_PORT->SR2; // Clear ADDR
+
+    // 7. Wait for RxNE (Receive data register not empty)
+    while (!(I2C_PORT->SR1 & (1 << 6)));
+
+    // 8. Generate STOP
+    I2C_PORT->CR1 |= (1 << 9); // STOP bit
+
+    // 9. Read data
+    data = (uint8_t)I2C_PORT->DR;
+
+    // Re-enable ACK for future transfers
+    I2C_PORT->CR1 |= (1 << 10);
+
+    return data;
+}
+
+/**
+ * @brief Reads multiple bytes from the FIFO buffer.
+ * @param buffer Pointer to the buffer to store the data.
+ * @param len Number of bytes to read.
+ */
+static void MAX30102_ReadMulti(uint8_t reg_addr, uint8_t *buffer, uint32_t len)
+{
+    // This implementation assumes that reading the REG_FIFO_DATA (0x07) repeatedly
+    // fetches the next sample data bytes as long as the read address is maintained.
+
+    // 1. Generate START
+    I2C_PORT->CR1 |= (1 << 8); // START bit
+    while (!(I2C_PORT->SR1 & (1 << 0))); // Wait for SB
+
+    // 2. Send slave address + Write bit
+    I2C_PORT->DR = MAX30102_ADDR;
+    while (!(I2C_PORT->SR1 & (1 << 1))); // Wait for ADDR
+    (void)I2C_PORT->SR2; // Clear ADDR
+
+    // 3. Send FIFO data register address (0x07)
+    I2C_PORT->DR = reg_addr;
+    while (!(I2C_PORT->SR1 & (1 << 7))); // Wait for TxE
+
+    // --- Phase 2: Read Data (Master Receiver) ---
+    // 4. Generate REPEATED START
+    I2C_PORT->CR1 |= (1 << 8); // START bit
+    while (!(I2C_PORT->SR1 & (1 << 0))); // Wait for SB
+
+    // 5. Send slave address + Read bit (0xAF)
+    I2C_PORT->DR = MAX30102_ADDR | 0x01; // Set R/W bit to 1
+    while (!(I2C_PORT->SR1 & (1 << 1))); // Wait for ADDR
+
+    // 6. Read N-1 bytes with ACK
+    for (uint32_t i = 0; i < len - 1; i++) {
+        while (!(I2C_PORT->SR1 & (1 << 6))); // Wait for RxNE
+        buffer[i] = (uint8_t)I2C_PORT->DR;
+    }
+
+    // 7. Read last byte with NACK and STOP
+    I2C_PORT->CR1 &= ~(1 << 10); // Clear ACK bit for NACK
+    (void)I2C_PORT->SR2; // Clear ADDR
+
+    // Wait for RxNE
+    while (!(I2C_PORT->SR1 & (1 << 6)));
+
+    // Generate STOP
+    I2C_PORT->CR1 |= (1 << 9);
+
+    // Read last byte
+    buffer[len - 1] = (uint8_t)I2C_PORT->DR;
+
+    // Re-enable ACK for future transfers
+    I2C_PORT->CR1 |= (1 << 10);
+}
+
+
+// --- Public Driver Functions ---
+
+/**
+ * @brief Sends a software reset to the MAX30102.
+ */
+void MAX30102_Reset(void)
+{
+    MAX30102_WriteReg(REG_MODE_CONFIG, MODE_RESET);
+    // Wait for the reset bit to clear
+    for (uint32_t i = 0; i < MAX_TIMEOUT; i++) {
+        if (!(MAX30102_ReadReg(REG_MODE_CONFIG) & MODE_RESET)) {
+            break;
+        }
+    }
+}
+
+/**
+ * @brief Initializes the MAX30102 with recommended settings for SpO2 mode.
+ */
+void MAX30102_Init(void)
+{
+    // 1. Reset the sensor
+    MAX30102_Reset();
+
+    // 2. Set LED Pulse Amplitude (using a moderate value for Red and IR)
+    // NOTE: These values may need tuning based on your finger/placement.
+    MAX30102_WriteReg(REG_LED_CONFIG + 0, 0x1F); // Red LED pulse amplitude (5mA)
+    MAX30102_WriteReg(REG_LED_CONFIG + 1, 0x1F); // IR LED pulse amplitude (5mA)
+
+    // 3. FIFO Configuration (0x08)
+    // - Sample Averaging: 8 samples (0x02 << 5)
+    // - FIFO Rollover: Enabled (1 << 4)
+    // - FIFO Almost Full (Interrupt is disabled here)
+    uint8_t fifo_config = FIFO_SAMPLE_AVE_8 | (1 << 4);
+    MAX30102_WriteReg(REG_FIFO_CONFIG, fifo_config);
+
+    // 4. SpO2 Configuration (0x0A)
+    // - ADC Range: 4096 nA (0x01 << 5)
+    // - Sample Rate: 100 Hz (0x03 << 2)
+    // - Pulse Width: 411 us (0x03 << 0)
+    uint8_t spo2_config = SPO2_ADC_RGE_4096 | SPO2_SR_100HZ | SPO2_PW_411US;
+    MAX30102_WriteReg(REG_SPO2_CONFIG, spo2_config);
+
+    // 5. Mode Configuration (0x09)
+    // - Set to SpO2 Mode (Red + IR)
+    MAX30102_WriteReg(REG_MODE_CONFIG, MODE_SPO2_EN);
+
+    // 6. Clear FIFO Pointers (after configuration, before reading)
+    MAX30102_WriteReg(REG_FIFO_WR_PTR, 0x00);
+    MAX30102_WriteReg(REG_OVF_COUNTER, 0x00);
+    MAX30102_WriteReg(REG_FIFO_RD_PTR, 0x00);
+
+    printf("MAX30102 Initialized. Part ID: 0x%X\n", MAX30102_ReadPartID());
+}
+
+/**
+ * @brief Reads the Part ID (0xFF) to verify device communication.
+ * @return The Part ID (should be 0x15 for MAX30102).
+ */
+uint8_t MAX30102_ReadPartID(void)
+{
+    return MAX30102_ReadReg(REG_PART_ID);
+}
+
+
+/**
+ * @brief Reads one sample from the FIFO buffer.
+ * @param data Pointer to the structure to store Red and IR data.
+ * @return 1 if data was available and read, 0 otherwise.
+ */
+uint8_t MAX30102_ReadFIFO(MAX30102_Data_t *data)
+{
+    uint8_t read_ptr = MAX30102_ReadReg(REG_FIFO_RD_PTR);
+    uint8_t write_ptr = MAX30102_ReadReg(REG_FIFO_WR_PTR);
+
+    // Check if FIFO is empty
+    if (read_ptr == write_ptr) {
+        return 0; // No new data available
+    }
+
+    // 6 bytes per sample (3 bytes Red, 3 bytes IR)
+    uint8_t buffer[6];
+
+    // Read 6 bytes starting from the FIFO Data register
+    MAX30102_ReadMulti(REG_FIFO_DATA, buffer, 6);
+
+    // The data is 18 bits wide, MSB first, with the top 6 bits being zero.
+    // Red LED data is bytes 0, 1, 2
+    data->red_led = (uint32_t)buffer[0] << 16;
+    data->red_led |= (uint32_t)buffer[1] << 8;
+    data->red_led |= (uint32_t)buffer[2];
+    data->red_led &= 0x03FFFF; // Mask to 18 bits
+
+    // IR LED data is bytes 3, 4, 5
+    data->ir_led = (uint32_t)buffer[3] << 16;
+    data->ir_led |= (uint32_t)buffer[4] << 8;
+    data->ir_led |= (uint32_t)buffer[5];
+    data->ir_led &= 0x03FFFF; // Mask to 18 bits
+
+    return 1; // Data successfully read
+}
+
