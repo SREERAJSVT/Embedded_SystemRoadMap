@@ -23,4 +23,16 @@
 	<section name="CResourceRenameRefactoringInputPage">
 		<item key="updateReferences" value="true"/>
 	</section>
+	<section name="org.eclipse.cdt.internal.corext.codemanipulation">
+		<section name=".h">
+			<item key="id" value="org.eclipse.cdt.ui.text.codetemplates.cheaderfile"/>
+			<item key="name" value="Default C header template"/>
+			<item key="contextId" value="org.eclipse.cdt.core.cHeader.contenttype_context"/>
+		</section>
+		<section name=".c">
+			<item key="id" value="org.eclipse.cdt.ui.text.codetemplates.csourcefile"/>
+			<item key="name" value="Default C source template"/>
+			<item key="contextId" value="org.eclipse.cdt.core.cSource.contenttype_context"/>
+		</section>
+	</section>
 </section>
