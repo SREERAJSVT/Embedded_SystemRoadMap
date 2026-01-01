@@ -20,6 +20,8 @@
             <launch memento="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&#13;&#10;&lt;launchConfiguration local=&quot;false&quot; path=&quot;/LED_blink/LED_blink Debug.launch&quot;/&gt;&#13;&#10;"/>
             <launch memento="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&#13;&#10;&lt;launchConfiguration local=&quot;false&quot; path=&quot;/test/test Debug.launch&quot;/&gt;&#13;&#10;"/>
         </mruHistory>
-        <favorites/>
+        <favorites>
+            <launch memento="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&#13;&#10;&lt;launchConfiguration local=&quot;false&quot; path=&quot;/oled/.metadata/.plugins/org.eclipse.debug.core/.launches/New_configuration (1).launch&quot;/&gt;&#13;&#10;"/>
+        </favorites>
     </launchGroup>
 </launchHistory>

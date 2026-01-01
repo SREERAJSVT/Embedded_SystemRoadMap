@@ -1,0 +1,5 @@
+../Src/main.c:19:6:delay_ms	16	static
+../Src/main.c:28:6:PinsInit	4	static
+../Src/main.c:51:6:ADC1Init	4	static
+../Src/main.c:87:10:ADC1_Read	4	static
+../Src/main.c:101:5:main	32	static

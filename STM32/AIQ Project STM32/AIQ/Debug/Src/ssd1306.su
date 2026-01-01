@@ -1,0 +1,5 @@
+../Src/ssd1306.c:6:6:SSD1306_WriteCmd	16	static
+../Src/ssd1306.c:11:6:SSD1306_WriteData	16	static
+../Src/ssd1306.c:16:6:SSD1306_Init	8	static
+../Src/ssd1306.c:24:6:SSD1306_Clear	16	static
+../Src/ssd1306.c:30:6:SSD1306_Update	16	static

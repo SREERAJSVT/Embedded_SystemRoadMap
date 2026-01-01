@@ -1,0 +1,13 @@
+#ifndef GFX_H
+#define GFX_H
+
+#include <stdint.h>
+
+void GFX_DrawPixel(uint8_t x, uint8_t y, uint8_t color);
+void GFX_DrawLine(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1);
+void GFX_DrawRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h);
+
+void GFX_DrawChar(uint8_t x, uint8_t y, char c);
+void GFX_DrawString(uint8_t x, uint8_t y, const char *str);
+
+#endif

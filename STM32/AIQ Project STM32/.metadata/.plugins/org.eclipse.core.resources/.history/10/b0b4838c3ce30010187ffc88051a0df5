@@ -1,0 +1,35 @@
+#include "SGP40SHT4x.h"
+#include <stdio.h>
+
+// 1. Move the actual Delay function to the top (or use the prototype in the .h)
+void Delay(uint32_t count) {
+    for(volatile uint32_t i = 0; i < count * 1000; i++);
+}
+
+void UART2_SendChar(char c) {
+    while (!(USART2_SR & (1 << 7))); // Wait for TXE
+    USART2_DR = c;
+}
+
+void UART2_SendString(char *s) {
+    while (*s) UART2_SendChar(*s++);
+}
+
+void SGP40_ReadRaw(uint16_t *voc_raw) {
+    I2C1_Start();
+    I2C1_Address(SGP40_ADDR << 1);
+    I2C1_Write(0x26);
+    I2C1_Write(0x0F);
+    I2C1_Stop();
+
+    Delay(30);
+
+    I2C1_Start();
+    I2C1_Address((SGP40_ADDR << 1) | 1);
+    uint8_t msb = I2C1_ReadAck();
+    uint8_t lsb = I2C1_ReadAck();
+    uint8_t crc = I2C1_ReadNack();
+
+    (void)crc; // Fixes "unused variable" error by telling compiler we acknowledge it
+    *voc_raw = (msb << 8) | lsb;
+}

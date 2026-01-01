@@ -1,0 +1,161 @@
+#include <stdint.h>
+#include <stdio.h>
+
+// --- Definitions ---
+#define OLED_ADDR     0x3C
+#define SHT4X_ADDR    0x44
+#define SGP40_ADDR    0x59
+
+// --- Register Map for STM32F446RE ---
+#define RCC_AHB1ENR   (*(volatile uint32_t *)0x40023830)
+#define RCC_APB1ENR   (*(volatile uint32_t *)0x40023840)
+#define GPIOB_MODER   (*(volatile uint32_t *)0x40020400)
+#define GPIOB_AFRH    (*(volatile uint32_t *)0x40020424)
+#define I2C1_CR1      (*(volatile uint32_t *)0x40005400)
+#define I2C1_CR2      (*(volatile uint32_t *)0x40005404)
+#define I2C1_DR       (*(volatile uint32_t *)0x40005410)
+#define I2C1_SR1      (*(volatile uint32_t *)0x40005414)
+#define I2C1_SR2      (*(volatile uint32_t *)0x40005418)
+#define I2C1_CCR      (*(volatile uint32_t *)0x4000541C)
+#define I2C1_TRISE    (*(volatile uint32_t *)0x40005420)
+
+// --- Font Table (Truncated for space) ---
+const uint8_t font5x7[][5] = {
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // Space
+    {0x7E, 0x11, 0x11, 0x11, 0x7E}, // A
+    {0x7F, 0x49, 0x49, 0x49, 0x36}, // B
+    {0x3E, 0x41, 0x41, 0x41, 0x22}  // C (Add rest as needed)
+};
+
+// --- ITM Redirection ---
+#define ITM_Port8(n)    (*(volatile uint8_t *)(0xE0000000 + 4*(n)))
+#define ITM_Port32(n)   (*(volatile uint32_t *)(0xE0000000 + 4*(n)))
+#define DEMCR           (*(volatile uint32_t *)(0xE000EDFC))
+#define TRCENA          (1 << 24)
+
+int _write(int file, char *ptr, int len) {
+    for (int i = 0; i < len; i++) {
+        if (((DEMCR & TRCENA) != 0) && ((ITM_Port32(0) & 1) != 0)) {
+            while (ITM_Port32(0) == 0);
+            ITM_Port8(0) = ptr[i];
+        }
+    }
+    return len;
+}
+
+// --- Robust I2C with Timeouts ---
+int I2C1_Wait(uint32_t bit) {
+    uint32_t timeout = 100000;
+    while (!(I2C1_SR1 & (1 << bit))) {
+        if (--timeout == 0) return -1;
+    }
+    return 0;
+}
+
+void Delay(uint32_t count) {
+    for(volatile uint32_t i = 0; i < count * 4000; i++);
+}
+
+void I2C1_Start(void) {
+    I2C1_CR1 |= (1 << 8);
+    I2C1_Wait(0); // SB
+}
+
+void I2C1_Address(uint8_t addr) {
+    I2C1_DR = addr;
+    if(I2C1_Wait(1) == 0) { // ADDR
+        (void)I2C1_SR1; (void)I2C1_SR2;
+    }
+}
+
+void I2C1_Write(uint8_t data) {
+    I2C1_Wait(7); // TXE
+    I2C1_DR = data;
+}
+
+void I2C1_Stop(void) {
+    I2C1_CR1 |= (1 << 9);
+}
+
+// --- OLED Core ---
+void OLED_WriteCmd(uint8_t cmd) {
+    I2C1_Start();
+    I2C1_Address(OLED_ADDR << 1);
+    I2C1_Write(0x00);
+    I2C1_Write(cmd);
+    I2C1_Stop();
+}
+
+void OLED_Init(void) {
+    Delay(100);
+    OLED_WriteCmd(0xAE); OLED_WriteCmd(0x8D); OLED_WriteCmd(0x14); OLED_WriteCmd(0xAF);
+}
+
+void OLED_SetCursor(uint8_t page, uint8_t col) {
+    OLED_WriteCmd(0xB0 + page);
+    OLED_WriteCmd(0x00 + (col & 0x0F));
+    OLED_WriteCmd(0x10 + (col >> 4));
+}
+
+void OLED_PutString(char *s) {
+    while (*s) {
+        char c = *s++;
+        const uint8_t *glyph = font5x7[0]; // Simplified for example
+        I2C1_Start(); I2C1_Address(OLED_ADDR << 1);
+        I2C1_Write(0x40);
+        for(int i=0; i<5; i++) I2C1_Write(glyph[i]);
+        I2C1_Stop();
+    }
+}
+
+void OLED_Clear(void) {
+    for(uint8_t p=0; p<4; p++) {
+        OLED_SetCursor(p, 0);
+        I2C1_Start(); I2C1_Address(OLED_ADDR << 1);
+        I2C1_Write(0x40);
+        for(int i=0; i<128; i++) I2C1_Write(0x00);
+        I2C1_Stop();
+    }
+}
+
+void System_Init(void) {
+    RCC_AHB1ENR |= (1 << 1); // GPIOB
+    RCC_APB1ENR |= (1 << 21); // I2C1
+
+    GPIOB_MODER |= (2 << 16) | (2 << 18); // AF Mode
+    GPIOB_AFRH  |= (4 << 0) | (4 << 4);   // AF4
+
+    I2C1_CR2 = 16;  // 16MHz
+    I2C1_CCR = 80;  // 100kHz
+    I2C1_TRISE = 17;
+    I2C1_CR1 |= 1;  // PE
+}
+
+int main(void) {
+    System_Init();
+    printf("\n--- OLED System Start ---\n");
+
+    // Step 1: Hardware Handshake
+    I2C1_Start();
+    I2C1_Address(OLED_ADDR << 1);
+
+    if (I2C1_SR1 & (1 << 1)) { // ADDR Set
+        printf("DISPLAY: OK\n");
+        (void)I2C1_SR1; (void)I2C1_SR2;
+
+        OLED_Init();
+        OLED_Clear();
+
+        OLED_SetCursor(0, 0);
+        OLED_PutString("SYSTEM: ACTIVE");
+        OLED_SetCursor(2, 0);
+        OLED_PutString("NOTE: AIR MONITOR");
+        OLED_SetCursor(3, 0);
+        OLED_PutString("STATUS: GOOD");
+    } else {
+        printf("DISPLAY: FAILED\n");
+    }
+    I2C1_Stop();
+
+    while(1);
+}

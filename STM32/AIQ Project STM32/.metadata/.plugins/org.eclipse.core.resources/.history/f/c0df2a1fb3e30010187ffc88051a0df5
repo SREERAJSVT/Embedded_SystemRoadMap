@@ -1,0 +1,105 @@
+#include "stm32_f446xx.h"
+#include "ssd1306.h"
+
+void delay_ms(uint32_t ms) {
+    for(uint32_t i = 0; i < ms * 1000; i++);
+}
+
+int main(void) {
+    // 1. Initialize I2C1 and OLED
+    I2C1_Init();
+    SSD1306_Init();
+
+    // 2. Clear Screen
+    SSD1306_Clear();
+
+    while(1) {
+        // Your code to display text/graphics goes here
+    }
+}
+
+// Low-level I2C Initialization for STM32F446
+void I2C1_Init(void) {
+    // Enable Clocks
+    GPIOB_CLK_EN();
+    I2C1_EN();
+
+    // Configure PB8 (SCL) and PB9 (SDA) as Alternate Function (AF4)
+    GPIOB->MODER |= (2 << (8 * 2)) | (2 << (9 * 2)); // Alt Func Mode
+    GPIOB->OTYPER |= (1 << 8) | (1 << 9);           // Open Drain
+    GPIOB->AFRL &= ~(0xFF << 0);                    // Clear (using AFRL/H)
+    GPIOB->AFRH |= (4 << 0) | (4 << 4);             // AF4 for I2C1
+
+    // I2C Configuration (Standard Mode 100kHz @ 16MHz CPU clock)
+    I2C1->CR1 |= (1 << 15); // Reset I2C
+    I2C1->CR1 &= ~(1 << 15);
+    I2C1->CR2 = 16;         // FREQ = 16MHz
+    I2C1->CCR = 80;         // Standard mode 100kHz
+    I2C1->TRISE = 17;
+    I2C1->CR1 |= (1 << 0);  // Enable PE (Peripheral Enable)
+}
+
+// Basic I2C Write function
+void I2C1_ByteWrite(uint8_t addr, uint8_t reg, uint8_t data) {
+    while(I2C1->SR2 & (1 << 1));        // Wait for Bus Not Busy
+    I2C1->CR1 |= (1 << 8);              // Start condition
+    while(!(I2C1->SR1 & (1 << 0)));     // Wait for SB bit
+
+    I2C1->DR = addr;                    // Send Slave Address
+    while(!(I2C1->SR1 & (1 << 1)));     // Wait for ADDR bit
+    (void)I2C1->SR2;                    // Clear ADDR bit
+
+    while(!(I2C1->SR1 & (1 << 7)));     // Wait for TXE
+    I2C1->DR = reg;                     // Control Byte (0x00 for CMD, 0x40 for DATA)
+
+    while(!(I2C1->SR1 & (1 << 7)));
+    I2C1->DR = data;                    // Data Byte
+
+    while(!(I2C1->SR1 & (1 << 2)));     // Wait for BTF
+    I2C1->CR1 |= (1 << 9);              // Stop condition
+}
+
+void SSD1306_WriteCmd(uint8_t cmd)   { I2C1_ByteWrite(SSD1306_ADDR, 0x00, cmd); }
+void SSD1306_WriteData(uint8_t data) { I2C1_ByteWrite(SSD1306_ADDR, 0x40, data); }
+
+void SSD1306_Init(void) {
+    delay_ms(100); // Wait for OLED Power up
+    SSD1306_WriteCmd(0xAE); // Display Off
+    SSD1306_WriteCmd(0x20); // Set Memory Addressing Mode
+    SSD1306_WriteCmd(0x10); // Page addressing mode
+    SSD1306_WriteCmd(0xB0); // Set Page Start Address for Page Addressing Mode,0-7
+    SSD1306_WriteCmd(0xC8); // Set COM Output Scan Direction
+    SSD1306_WriteCmd(0x00); // ---set low column address
+    SSD1306_WriteCmd(0x10); // ---set high column address
+    SSD1306_WriteCmd(0x40); // --set start line address
+    SSD1306_WriteCmd(0x81); // --set contrast control register
+    SSD1306_WriteCmd(0xFF);
+    SSD1306_WriteCmd(0xA1); // --set segment re-map 0 to 127
+    SSD1306_WriteCmd(0xA6); // --set normal display
+    SSD1306_WriteCmd(0xA8); // --set multiplex ratio(1 to 64)
+    SSD1306_WriteCmd(0x1F); // 0.91 OLED is 128x32 (0x1F)
+    SSD1306_WriteCmd(0xD3); // set display offset
+    SSD1306_WriteCmd(0x00); // not offset
+    SSD1306_WriteCmd(0xD5); // --set display clock divide ratio/oscillator frequency
+    SSD1306_WriteCmd(0xF0); // --set divide ratio
+    SSD1306_WriteCmd(0xD9); // --set pre-charge period
+    SSD1306_WriteCmd(0x22);
+    SSD1306_WriteCmd(0xDA); // --set com pins hardware configuration
+    SSD1306_WriteCmd(0x02);
+    SSD1306_WriteCmd(0xDB); // --set vcomh
+    SSD1306_WriteCmd(0x20); // 0.77xVcc
+    SSD1306_WriteCmd(0x8D); // --set Charge Pump enable/disable
+    SSD1306_WriteCmd(0x14); // --set(0x10) disable
+    SSD1306_WriteCmd(0xAF); // --turn on oled panel
+}
+
+void SSD1306_Clear(void) {
+    for (uint8_t i = 0; i < 8; i++) {
+        SSD1306_WriteCmd(0xB0 + i);
+        SSD1306_WriteCmd(0x00);
+        SSD1306_WriteCmd(0x10);
+        for (uint8_t j = 0; j < 128; j++) {
+            SSD1306_WriteData(0x00);
+        }
+    }
+}

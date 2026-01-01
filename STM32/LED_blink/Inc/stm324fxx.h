@@ -7,6 +7,9 @@
 
 #ifndef STM32_F446XX_H_
 #define STM32_F446XX_H_
+#include <stdint.h>   // ⭐ REQUIRED
+#include <stddef.h>
+
 
 // GPIO base addresses {AHB1 bus}
 

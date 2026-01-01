@@ -107,40 +107,35 @@ int main(void)
 
     // --- Infinite Loop ---
     while(1)
-    {
-        uint16_t adc_value = ADC1_Read(); // Read the ADC value
-
-    	uint32_t scaled_temp_x100 = (adc_value * 33000) / 4096;
-
-    	// Extract Integer and Fractional Parts
-    	int temp_int = scaled_temp_x100 / 100; // Integer part
-    	int temp_frac = scaled_temp_x100 % 100; // Fractional part (00 to 99)
-    	// Print using standard %d, which doesn't require floating-point support
-    	printf("Temperature: %d.%02d C\n", temp_int, temp_frac);
-    	// --- LM35 Temperature Calculation ---
-    	            float voltage_mv = (float)adc_value * (3300.0f / 4096.0f);
-    	           // float temperature_c = voltage_mv / 10.0f; // LM35: 10mV per degree C
-
-    	            printf("Temperature: %.2f C\n", adc_value f);
-        // --- Button Check (Active Low Logic) ---
-        // If (PC13 is HIGH), the button is RELEASED
-        // If (PC13 is LOW), the button is PRESSED
-
-        if (GPIOC->IDR & (1 << SwitchPin)) // Check if pin is HIGH (Button is RELEASED/Open)
         {
-            // Action for RELEASED state
-            // Turn LED OFF (Clear bit 5)
-            GPIOA->ODR &= ~(1 << LEDPin);
-            printf("Switch Released\n");
+            uint16_t adc_value = ADC1_Read(); // Read the ADC value
+
+            // --- Integer-only Calculation (Safe for nano.specs) ---
+            uint32_t scaled_temp_x100 = (adc_value * 33000) / 4096;
+            int temp_int = scaled_temp_x100 / 1000;   // Integer part
+            int temp_frac = (scaled_temp_x100 / 10) % 100; // Two decimal places
+
+            // Print using integer parts (avoids float formatting issues)
+            printf("Temperature (Int): %d.%02d C\n", temp_int, temp_frac);
+
+            // --- LM35 Float Calculation ---
+            float voltage_mv = (float)adc_value * (3300.0f / 4096.0f);
+            float temperature_c = voltage_mv / 10.0f; // LM35: 10mV per degree C
+
+            // FIXED LINE: Ensure the variable passed matches %f
+            printf("Temperature (Float): %.2f C\n", temperature_c);
+
+            // --- Button Check ---
+            if (GPIOC->IDR & (1 << SwitchPin))
+            {
+                GPIOA->ODR &= ~(1 << LEDPin); // LED OFF
+                printf("Switch Released\n");
+            }
+            else
+            {
+                GPIOA->ODR |= (1 << LEDPin);  // LED ON
+                printf("Switch Pressed\n");
+            }
             delay_ms();
         }
-        else // Pin is LOW (Button is PRESSED/Closed)
-        {
-            // Action for PRESSED state
-            // Turn LED ON (Set bit 5)
-            GPIOA->ODR |= (1 << LEDPin);
-            printf("Switch Pressed\n");
-            delay_ms();
-        }
-    }
 }

@@ -1,0 +1,68 @@
+/*
+ * ssd1306.h
+ *
+ *  Created on: 28-Dec-2025
+ *      Author: sreer
+ */
+
+
+#include "ssd1306.h"
+#include "i2c.h"
+
+void SSD1306_WriteCmd(uint8_t cmd)
+{
+    I2C1_Write(SSD1306_ADDR, 0x00, cmd);
+}
+
+void SSD1306_WriteData(uint8_t data)
+{
+    I2C1_Write(SSD1306_ADDR, 0x40, data);
+}
+
+void SSD1306_Init(void)
+{
+    for(volatile int i = 0; i < 100000; i++);
+
+    SSD1306_WriteCmd(0xAE); // Display OFF
+    SSD1306_WriteCmd(0x20); // Memory mode
+    SSD1306_WriteCmd(0x00); // Horizontal
+    SSD1306_WriteCmd(0xB0); // Page 0
+    SSD1306_WriteCmd(0xC8);
+    SSD1306_WriteCmd(0x00);
+    SSD1306_WriteCmd(0x10);
+    SSD1306_WriteCmd(0x40);
+    SSD1306_WriteCmd(0x81);
+    SSD1306_WriteCmd(0x7F);
+    SSD1306_WriteCmd(0xA1);
+    SSD1306_WriteCmd(0xA6);
+    SSD1306_WriteCmd(0xA8);
+    SSD1306_WriteCmd(0x1F); // 128x32
+    SSD1306_WriteCmd(0xD3);
+    SSD1306_WriteCmd(0x00);
+    SSD1306_WriteCmd(0xD5);
+    SSD1306_WriteCmd(0x80);
+    SSD1306_WriteCmd(0xD9);
+    SSD1306_WriteCmd(0x22);
+    SSD1306_WriteCmd(0xDA);
+    SSD1306_WriteCmd(0x02);
+    SSD1306_WriteCmd(0xDB);
+    SSD1306_WriteCmd(0x20);
+    SSD1306_WriteCmd(0x8D);
+    SSD1306_WriteCmd(0x14);
+    SSD1306_WriteCmd(0xAF); // Display ON
+}
+
+void SSD1306_Clear(void)
+{
+    for(uint8_t page = 0; page < 4; page++)
+    {
+        SSD1306_WriteCmd(0xB0 + page);
+        SSD1306_WriteCmd(0x00);
+        SSD1306_WriteCmd(0x10);
+
+        for(uint8_t col = 0; col < 128; col++)
+        {
+            SSD1306_WriteData(0x00);
+        }
+    }
+}

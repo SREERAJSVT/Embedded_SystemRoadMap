@@ -1,0 +1,64 @@
+#include "gfx.h"
+#include "font5x7.h"
+#include "ssd1306.h"
+#include <stdlib.h>
+
+extern uint8_t SSD1306_Buffer[128 * 4];
+
+void GFX_DrawPixel(uint8_t x, uint8_t y, uint8_t color)
+{
+    if (x >= 128 || y >= 32) return;
+
+    uint16_t index = x + (y / 8) * 128;
+
+    if (color)
+        SSD1306_Buffer[index] |= (1 << (y % 8));
+    else
+        SSD1306_Buffer[index] &= ~(1 << (y % 8));
+}
+
+void GFX_DrawLine(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1)
+{
+    int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+    int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+    int err = dx + dy;
+
+    while (1)
+    {
+        GFX_DrawPixel(x0, y0, 1);
+        if (x0 == x1 && y0 == y1) break;
+        int e2 = 2 * err;
+        if (e2 >= dy) { err += dy; x0 += sx; }
+        if (e2 <= dx) { err += dx; y0 += sy; }
+    }
+}
+
+void GFX_DrawRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h)
+{
+    GFX_DrawLine(x, y, x + w, y);
+    GFX_DrawLine(x, y + h, x + w, y + h);
+    GFX_DrawLine(x, y, x, y + h);
+    GFX_DrawLine(x + w, y, x + w, y + h);
+}
+
+void GFX_DrawChar(uint8_t x, uint8_t y, char c)
+{
+    if (c < 32 || c > 127) return;
+
+    for (uint8_t col = 0; col < 5; col++)
+    {
+        uint8_t line = Font5x7[c - 32][col];
+        for (uint8_t row = 0; row < 7; row++)
+            if (line & (1 << row))
+                GFX_DrawPixel(x + col, y + row, 1);
+    }
+}
+
+void GFX_DrawString(uint8_t x, uint8_t y, const char *str)
+{
+    while (*str)
+    {
+        GFX_DrawChar(x, y, *str++);
+        x += 6;
+    }
+}

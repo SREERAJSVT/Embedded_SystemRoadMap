@@ -1,0 +1,12 @@
+#include "gfx.h"
+#include "ssd1306.h"
+#include "font5x7.h"
+
+void SSD1306_DrawString(uint8_t x, uint8_t y, const char *str)
+{
+    while (*str)
+    {
+        SSD1306_DrawChar(x, y, *str++);
+        x += 6;
+    }
+}

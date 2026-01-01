@@ -1,0 +1,7 @@
+18:39:06 **** Incremental Build of configuration Debug for project AIQTEST ****
+make -j16 all 
+Startup/subdir.mk:19: *** unable to generate command line.  Stop.
+"make -j16 all" terminated with exit code 2. Build might be incomplete.
+
+18:39:06 Build Failed. 1 errors, 0 warnings. (took 316ms)
+

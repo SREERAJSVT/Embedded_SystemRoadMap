@@ -1,0 +1,45 @@
+/*
+ * sht40.c
+ *
+ *  Created on: 26-Dec-2025
+ *      Author: sreer
+ */
+#include "stm32f446xx.h"
+#define SHT40_ADDR 0x44 << 1
+
+void SHT40_Read(float *temp, float *rh) {
+    // Start + Send Address + Command 0xFD
+    I2C1->CR1 |= I2C_CR1_START;
+    while (!(I2C1->SR1 & I2C_SR1_SB));
+    I2C1->DR = SHT40_ADDR;
+    while (!(I2C1->SR1 & I2C_SR1_ADDR));
+    (void)I2C1->SR2;
+
+    I2C1->DR = 0xFD; // High precision cmd
+    while (!(I2C1->SR1 & I2C_SR1_BTF));
+    I2C1->CR1 |= I2C_CR1_STOP;
+
+    for(volatile int i=0; i<100000; i++); // Wait for measurement (~10ms)
+
+    // Read 6 bytes
+    uint8_t buf[6];
+    I2C1->CR1 |= I2C_CR1_START | I2C_CR1_ACK;
+    while (!(I2C1->SR1 & I2C_SR1_SB));
+    I2C1->DR = SHT40_ADDR | 1;
+    while (!(I2C1->SR1 & I2C_SR1_ADDR));
+    (void)I2C1->SR2;
+
+    for(int i=0; i<6; i++) {
+        if(i == 5) I2C1->CR1 &= ~I2C_CR1_ACK; // NACK last byte
+        while (!(I2C1->SR1 & I2C_SR1_RXNE));
+        buf[i] = I2C1->DR;
+    }
+    I2C1->CR1 |= I2C_CR1_STOP;
+
+    uint16_t t_ticks = (buf[0] << 8) | buf[1];
+    uint16_t rh_ticks = (buf[3] << 8) | buf[4];
+
+    *temp = -45.0f + 175.0f * (float)t_ticks / 65535.0f;
+    *rh = -6.0f + 125.0f * (float)rh_ticks / 65535.0f;
+}
+

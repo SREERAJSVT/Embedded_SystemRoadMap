@@ -1,0 +1,39 @@
+/*
+ * stm32f446xx.h
+ *
+ *  Created on: 26-Dec-2025
+ *      Author: sreer
+ */
+
+Description	Resource	Path	Location	Type
+unknown type name 'uint8_t'	oled_ssd1306.c	/AIQTEST/Src	line 7	C/C++ Problem
+unknown type name 'uint8_t'	oled_ssd1306.c	/AIQTEST/Src	line 22	C/C++ Problem
+make: *** Waiting for unfinished jobs....	AIQTEST		 	C/C++ Problem
+make: *** [Src/subdir.mk:37: Src/system_init.o] Error 1	AIQTEST		 	C/C++ Problem
+make: *** [Src/subdir.mk:37: Src/oled_ssd1306.o] Error 1	AIQTEST		 	C/C++ Problem
+make: *** [Src/subdir.mk:37: Src/main.o] Error 1	AIQTEST		 	C/C++ Problem
+'voc_params' undeclared (first use in this function)	main.c	/AIQTEST/Src	line 43	C/C++ Problem
+'GPIO_AFRH_AFSEL9_Pos' undeclared (first use in this function); did you mean 'GPIO_AFRH_AFSEL8_Pos'?	system_init.c	/AIQTEST/Src	line 18	C/C++ Problem
+implicit declaration of function 'VocAlgorithm_process' [-Wimplicit-function-declaration]	main.c	/AIQTEST/Src	line 43	C/C++ Problem
+implicit declaration of function 'System_Init' [-Wimplicit-function-declaration]	main.c	/AIQTEST/Src	line 28	C/C++ Problem
+implicit declaration of function 'SHT40_Read' [-Wimplicit-function-declaration]	main.c	/AIQTEST/Src	line 36	C/C++ Problem
+implicit declaration of function 'SGP40_GetRaw' [-Wimplicit-function-declaration]	main.c	/AIQTEST/Src	line 40	C/C++ Problem
+implicit declaration of function 'SD_Log_Data' [-Wimplicit-function-declaration]	main.c	/AIQTEST/Src	line 48	C/C++ Problem
+implicit declaration of function 'OLED_Init' [-Wimplicit-function-declaration]	main.c	/AIQTEST/Src	line 29	C/C++ Problem
+implicit declaration of function 'OLED_Display_Metrics' [-Wimplicit-function-declaration]	main.c	/AIQTEST/Src	line 51	C/C++ Problem
+implicit declaration of function 'OLED_Cmd' [-Wimplicit-function-declaration]	oled_ssd1306.c	/AIQTEST/Src	line 23	C/C++ Problem
+implicit declaration of function 'DewPoint_Compute' [-Wimplicit-function-declaration]	main.c	/AIQTEST/Src	line 44	C/C++ Problem
+"GPIO_OTYPER_OT8_Pos" redefined	stm32f446xx.h	/AIQTEST/Inc	line 76	C/C++ Problem
+"GPIO_MODER_MODER9_Pos" redefined	stm32f446xx.h	/AIQTEST/Inc	line 74	C/C++ Problem
+"GPIO_MODER_MODER8_Pos" redefined	stm32f446xx.h	/AIQTEST/Inc	line 73	C/C++ Problem
+"GPIO_MODER_MODER5_Pos" redefined	stm32f446xx.h	/AIQTEST/Inc	line 70	C/C++ Problem
+"GPIO_MODER_MODER4_Pos" redefined	stm32f446xx.h	/AIQTEST/Inc	line 69	C/C++ Problem
+this is the location of the previous definition	stm32f446xx.h	/AIQTEST/Inc	line 45	C/C++ Problem
+this is the location of the previous definition	stm32f446xx.h	/AIQTEST/Inc	line 46	C/C++ Problem
+this is the location of the previous definition	stm32f446xx.h	/AIQTEST/Inc	line 47	C/C++ Problem
+this is the location of the previous definition	stm32f446xx.h	/AIQTEST/Inc	line 48	C/C++ Problem
+this is the location of the previous definition	stm32f446xx.h	/AIQTEST/Inc	line 49	C/C++ Problem
+each undeclared identifier is reported only once for each function it appears in	main.c	/AIQTEST/Src	line 43	C/C++ Problem
+each undeclared identifier is reported only once for each function it appears in	system_init.c	/AIQTEST/Src	line 18	C/C++ Problem
+'uint8_t' is defined in header '<stdint.h>'; did you forget to '#include <stdint.h>'?	oled_ssd1306.c	/AIQTEST/Src	line 1	C/C++ Problem
+'uint8_t' is defined in header '<stdint.h>'; did you forget to '#include <stdint.h>'?	oled_ssd1306.c	/AIQTEST/Src	line 22	C/C++ Problem

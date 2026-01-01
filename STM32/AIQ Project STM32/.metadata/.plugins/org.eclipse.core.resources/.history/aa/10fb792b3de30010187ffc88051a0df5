@@ -1,0 +1,75 @@
+#include "SGP40SHT4x.h"
+#include <stdio.h>
+
+// 1. Move the actual Delay function to the top (or use the prototype in the .h)
+void Delay(uint32_t count) {
+    for(volatile uint32_t i = 0; i < count * 1000; i++);
+}
+
+void UART2_SendChar(char c) {
+    while (!(USART2_SR & (1 << 7))); // Wait for TXE
+    USART2_DR = c;
+}
+
+void UART2_SendString(char *s) {
+    while (*s) UART2_SendChar(*s++);
+}
+
+void SGP40_ReadRaw(uint16_t *voc_raw) {
+    I2C1_Start();
+    I2C1_Address(SGP40_ADDR << 1);
+    I2C1_Write(0x26);
+    I2C1_Write(0x0F);
+    I2C1_Stop();
+
+    Delay(30);
+
+    I2C1_Start();
+    I2C1_Address((SGP40_ADDR << 1) | 1);
+    uint8_t msb = I2C1_ReadAck();
+    uint8_t lsb = I2C1_ReadAck();
+    uint8_t crc = I2C1_ReadNack();
+
+    (void)crc; // Fixes "unused variable" error by telling compiler we acknowledge it
+    *voc_raw = (msb << 8) | lsb;
+}
+void OLED_WriteCmd(uint8_t cmd) {
+    I2C1_Start();
+    I2C1_Address(0x3C << 1);
+    I2C1_Write(0x00); // 0x00 indicates following byte is a command
+    I2C1_Write(cmd);
+    I2C1_Stop();
+}
+
+void OLED_Init(void) {
+    Delay(100); // Wait for power up
+    OLED_WriteCmd(0xAE); // Display OFF
+    OLED_WriteCmd(0x20); // Set Memory Addressing Mode
+    OLED_WriteCmd(0x10); // Page Addressing Mode
+    OLED_WriteCmd(0xB0); // Set Page Start Address for Page Addressing Mode,0-7
+    OLED_WriteCmd(0xC8); // Set COM Output Scan Direction
+    OLED_WriteCmd(0x00); // ---set low column address
+    OLED_WriteCmd(0x10); // ---set high column address
+    OLED_WriteCmd(0x40); // --set start line address
+    OLED_WriteCmd(0x81); // --set contrast control register
+    OLED_WriteCmd(0xFF);
+    OLED_WriteCmd(0xA1); // --set segment re-map 0 to 127
+    OLED_WriteCmd(0xA6); // --set normal display
+    OLED_WriteCmd(0xA8); // --set multiplex ratio(1 to 64)
+    OLED_WriteCmd(0x1F); // 0x1F for 128x32
+    OLED_WriteCmd(0xA4); // 0xa4,Output follows RAM content;0xa5,Output ignores RAM content
+    OLED_WriteCmd(0xD3); // -set display offset
+    OLED_WriteCmd(0x00); // -not offset
+    OLED_WriteCmd(0xD5); // --set display clock divide ratio/oscillator frequency
+    OLED_WriteCmd(0xF0); // --set divide ratio
+    OLED_WriteCmd(0xD9); // --set pre-charge period
+    OLED_WriteCmd(0x22);
+    OLED_WriteCmd(0xDA); // --set com pins hardware configuration
+    OLED_WriteCmd(0x02);
+    OLED_WriteCmd(0xDB); // --set vcomh
+    OLED_WriteCmd(0x20); // 0x20,0.77xVcc
+    OLED_WriteCmd(0x8D); // --set DC-DC enable
+    OLED_WriteCmd(0x14);
+    OLED_WriteCmd(0xAF); // --turn on oled panel
+}
+}

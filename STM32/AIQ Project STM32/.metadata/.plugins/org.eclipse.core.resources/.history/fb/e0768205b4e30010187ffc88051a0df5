@@ -1,0 +1,50 @@
+/*
+ * gfx.c
+ *
+ *  Created on: 28-Dec-2025
+ *      Author: sreer
+ */
+
+
+#include "gfx.h"
+#include "ssd1306.h"
+
+extern uint8_t SSD1306_Buffer[128 * 4];
+
+void GFX_DrawPixel(uint8_t x, uint8_t y, uint8_t color)
+{
+    if (x >= 128 || y >= 32) return;
+
+    uint16_t index = x + (y / 8) * 128;
+
+    if (color)
+        SSD1306_Buffer[index] |= (1 << (y % 8));
+    else
+        SSD1306_Buffer[index] &= ~(1 << (y % 8));
+}
+
+void GFX_DrawLine(int x0, int y0, int x1, int y1)
+{
+    int dx = abs(x1 - x0);
+    int dy = -abs(y1 - y0);
+    int sx = x0 < x1 ? 1 : -1;
+    int sy = y0 < y1 ? 1 : -1;
+    int err = dx + dy;
+
+    while (1)
+    {
+        GFX_DrawPixel(x0, y0, 1);
+        if (x0 == x1 && y0 == y1) break;
+        int e2 = 2 * err;
+        if (e2 >= dy) { err += dy; x0 += sx; }
+        if (e2 <= dx) { err += dx; y0 += sy; }
+    }
+}
+
+void GFX_DrawRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h)
+{
+    GFX_DrawLine(x, y, x+w, y);
+    GFX_DrawLine(x, y+h, x+w, y+h);
+    GFX_DrawLine(x, y, x, y+h);
+    GFX_DrawLine(x+w, y, x+w, y+h);
+}

@@ -1,0 +1,134 @@
+#include "SGP40SHT4x.h"
+#include <stdio.h>
+
+// --- Helper Functions ---
+void Delay(uint32_t count) {
+    for(volatile uint32_t i = 0; i < count * 1000; i++);
+}
+
+// --- UART Functions ---
+void UART2_SendChar(char c) {
+    while (!(USART2_SR & (1 << 7))); // Wait for TXE
+    USART2_DR = c;
+}
+
+void UART2_SendString(char *s) {
+    while (*s) UART2_SendChar(*s++);
+}
+
+// --- I2C Low Level Implementations ---
+void I2C1_Start(void) {
+    I2C1_CR1 |= (1 << 8);           // Start bit
+    while (!(I2C1_SR1 & (1 << 0))); // Wait for SB bit
+}
+
+void I2C1_Write(uint8_t data) {
+    I2C1_DR = data;
+    while (!(I2C1_SR1 & (1 << 7))); // Wait for TxE
+}
+
+void I2C1_Address(uint8_t addr) {
+    I2C1_DR = addr;
+    while (!(I2C1_SR1 & (1 << 1))); // Wait for ADDR bit
+    (void)I2C1_SR1;                 // Read SR1 and SR2 to clear ADDR flag
+    (void)I2C1_SR2;
+}
+
+uint8_t I2C1_ReadAck(void) {
+    I2C1_CR1 |= (1 << 10);          // Enable ACK
+    while (!(I2C1_SR1 & (1 << 6))); // Wait for RxNE
+    return (uint8_t)I2C1_DR;
+}
+
+uint8_t I2C1_ReadNack(void) {
+    I2C1_CR1 &= ~(1 << 10);         // Disable ACK
+    I2C1_CR1 |= (1 << 9);           // Generate Stop
+    while (!(I2C1_SR1 & (1 << 6))); // Wait for RxNE
+    return (uint8_t)I2C1_DR;
+}
+
+void I2C1_Stop(void) {
+    I2C1_CR1 |= (1 << 9);
+}
+
+// --- Sensor Reads ---
+void SHT4x_Read(uint16_t *t_raw) {
+    I2C1_Start();
+    I2C1_Address(SHT4X_ADDR << 1);
+    I2C1_Write(0xFD);
+    I2C1_Stop();
+    Delay(10);
+    I2C1_Start();
+    I2C1_Address((SHT4X_ADDR << 1) | 1);
+    uint8_t msb = I2C1_ReadAck();
+    uint8_t lsb = I2C1_ReadAck();
+    uint8_t crc = I2C1_ReadNack();
+    (void)crc;
+    *t_raw = (msb << 8) | lsb;
+}
+
+void SGP40_ReadRaw(uint16_t *voc_raw) {
+    I2C1_Start();
+    I2C1_Address(SGP40_ADDR << 1);
+    I2C1_Write(0x26);
+    I2C1_Write(0x0F);
+    I2C1_Stop();
+    Delay(30);
+    I2C1_Start();
+    I2C1_Address((SGP40_ADDR << 1) | 1);
+    uint8_t msb = I2C1_ReadAck();
+    uint8_t lsb = I2C1_ReadAck();
+    uint8_t crc = I2C1_ReadNack();
+    (void)crc;
+    *voc_raw = (msb << 8) | lsb;
+}
+
+// --- OLED Functions ---
+void OLED_WriteCmd(uint8_t cmd) {
+    I2C1_Start();
+    I2C1_Address(0x3C << 1);
+    I2C1_Write(0x00);
+    I2C1_Write(cmd);
+    I2C1_Stop();
+}
+
+void OLED_Init(void) {
+    Delay(100);
+    OLED_WriteCmd(0xAE); OLED_WriteCmd(0x20); OLED_WriteCmd(0x10);
+    OLED_WriteCmd(0xB0); OLED_WriteCmd(0xC8); OLED_WriteCmd(0x00);
+    OLED_WriteCmd(0x10); OLED_WriteCmd(0x40); OLED_WriteCmd(0x81);
+    OLED_WriteCmd(0xFF); OLED_WriteCmd(0xA1); OLED_WriteCmd(0xA6);
+    OLED_WriteCmd(0xA8); OLED_WriteCmd(0x1F); OLED_WriteCmd(0xA4);
+    OLED_WriteCmd(0xD3); OLED_WriteCmd(0x00); OLED_WriteCmd(0xD5);
+    OLED_WriteCmd(0xF0); OLED_WriteCmd(0xD9); OLED_WriteCmd(0x22);
+    OLED_WriteCmd(0xDA); OLED_WriteCmd(0x02); OLED_WriteCmd(0xDB);
+    OLED_WriteCmd(0x20); OLED_WriteCmd(0x8D); OLED_WriteCmd(0x14);
+    OLED_WriteCmd(0xAF);
+}
+
+// --- Main Execution ---
+int main(void) {
+    // Note: You must initialize RCC clocks and GPIO Alternate Functions
+    // for I2C1 (PB8/PB9) and USART2 (PA2/PA3) here.
+
+    OLED_Init();
+    UART2_SendString("System Start\r\n");
+
+    uint16_t temp_raw = 0;
+    uint16_t voc_raw = 0;
+    char buffer[64];
+
+    while(1) {
+        SHT4x_Read(&temp_raw);
+        SGP40_ReadRaw(&voc_raw);
+
+        // Print raw values to UART
+        sprintf(buffer, "SHT_Raw: %u | SGP_Raw: %u\r\n", temp_raw, voc_raw);
+        UART2_SendString(buffer);
+
+        // To display on OLED, you need a font table.
+        // For now, these raw values are visible in your Serial Monitor.
+
+        Delay(1000);
+    }
+}
