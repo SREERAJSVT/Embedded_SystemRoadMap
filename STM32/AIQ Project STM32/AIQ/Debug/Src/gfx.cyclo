@@ -1,5 +1,0 @@
-../Src/gfx.c:8:6:GFX_DrawPixel	4
-../Src/gfx.c:20:6:GFX_DrawLine	7
-../Src/gfx.c:36:6:GFX_DrawRect	1
-../Src/gfx.c:44:6:GFX_DrawChar	6
-../Src/gfx.c:57:6:GFX_DrawString	2

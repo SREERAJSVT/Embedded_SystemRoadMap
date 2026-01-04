@@ -1,22 +1,10 @@
-21:35:08 **** Incremental Build of configuration Debug for project LED_blink ****
+00:09:54 **** Build of configuration Debug for project LED_blink ****
 make -j16 all 
-arm-none-eabi-gcc "../Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DSTM32 -DSTM32F4 -DSTM32F446RETx -DNUCLEO_F446RE -c -I../Inc -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Src/main.d" -MT"Src/main.o" --specs=nano.specs -mfloat-abi=soft -mthumb -o "Src/main.o"
-../Src/main.c: In function 'main':
-../Src/main.c:124:62: error: expected ')' before 'f'
-  124 |                     printf("Temperature: %.2f C\n", adc_value f);
-      |                           ~                                  ^~
-      |                                                              )
-../Src/main.c:124:45: warning: format '%f' expects argument of type 'double', but argument 2 has type 'int' [-Wformat=]
-  124 |                     printf("Temperature: %.2f C\n", adc_value f);
-      |                                          ~~~^       ~~~~~~~~~
-      |                                             |       |
-      |                                             double  int
-      |                                          %.2d
-../Src/main.c:121:27: warning: unused variable 'voltage_mv' [-Wunused-variable]
-  121 |                     float voltage_mv = (float)adc_value * (3300.0f / 4096.0f);
-      |                           ^~~~~~~~~~
-make: *** [Src/subdir.mk:25: Src/main.o] Error 1
-"make -j16 all" terminated with exit code 2. Build might be incomplete.
+arm-none-eabi-size  LED_blink.elf 
+   text	   data	    bss	    dec	    hex	filename
+   7856	     92	   1900	   9848	   2678	LED_blink.elf
+Finished building: default.size.stdout
+ 
 
-21:35:09 Build Failed. 2 errors, 2 warnings. (took 371ms)
+00:09:55 Build Finished. 0 errors, 0 warnings. (took 888ms)
 

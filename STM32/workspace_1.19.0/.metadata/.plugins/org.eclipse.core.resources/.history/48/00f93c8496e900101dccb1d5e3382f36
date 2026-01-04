@@ -1,0 +1,13 @@
+/*
+ * sensirion_arch_config.h
+ *
+ *  Created on: Jan 4, 2026
+ *      Author: sreer
+ */
+
+#ifndef INC_SENSIRION_ARCH_CONFIG_H_
+#define INC_SENSIRION_ARCH_CONFIG_H_
+
+
+
+#endif /* INC_SENSIRION_ARCH_CONFIG_H_ */
