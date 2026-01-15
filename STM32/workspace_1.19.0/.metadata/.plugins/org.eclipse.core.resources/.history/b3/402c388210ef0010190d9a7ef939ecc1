@@ -1,0 +1,95 @@
+/* USER CODE BEGIN 0 */
+/* USER CODE BEGIN PV */
+uint8_t buf[64];
+/* USER CODE END PV */
+
+// Helper function for cleaner debug code
+void UART_Print(char* message) {
+    HAL_UART_Transmit(&huart2, (uint8_t*)message, strlen(message), 100);
+}
+/* USER CODE END 0 */
+
+/**
+  * @brief  The application entry point.
+  * @retval int
+  */
+int main(void)
+{
+  /* USER CODE BEGIN 1 */
+  // DO NOT initialize peripherals here. HAL is not ready yet.
+  /* USER CODE END 1 */
+
+  /* MCU Configuration--------------------------------------------------------*/
+
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
+
+  /* USER CODE BEGIN Init */
+  /* USER CODE END Init */
+
+  /* Configure the system clock */
+  SystemClock_Config();
+
+  /* USER CODE BEGIN SysInit */
+  /* USER CODE END SysInit */
+
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_USART2_UART_Init();
+
+  // Debug: Check if UART is working immediately
+  UART_Print("[DEBUG] UART Initialized.\r\n");
+
+  MX_I2C1_Init();
+  UART_Print("[DEBUG] I2C1 Initialized.\r\n");
+
+  MX_SPI2_Init();
+  UART_Print("[DEBUG] SPI2 Initialized.\r\n");
+
+  /* USER CODE BEGIN 2 */
+
+  // --- CORRECT LOCATION FOR OLED INIT ---
+  // Now that I2C/SPI are ready, we can start the OLED
+  UART_Print("[DEBUG] Initializing SSD1306...\r\n");
+
+  ssd1306_Init();
+
+  UART_Print("[DEBUG] SSD1306 Init Called. Filling Screen...\r\n");
+
+  ssd1306_Fill(Black);
+  ssd1306_UpdateScreen();
+
+  UART_Print("[DEBUG] Screen Cleared. Starting Loop.\r\n");
+
+  /* USER CODE END 2 */
+
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
+  while (1)
+  {
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
+      UART_Print("[DEBUG] Loop: Updating Display...\r\n");
+
+      ssd1306_Fill(Black);
+
+      // Verify cursor and font settings are correct in your library
+      #ifdef SSD1306_INCLUDE_FONT_16x26
+          ssd1306_SetCursor(2, 0);
+          ssd1306_WriteString("Running!", Font_16x26, White);
+      #else
+          // Fallback if the large font isn't enabled
+          ssd1306_SetCursor(0, 0);
+          ssd1306_WriteString("OLED TEST", Font_7x10, White);
+      #endif
+
+      ssd1306_UpdateScreen();
+
+      // Toggle LED to visually verify the MCU isn't stuck
+      HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+
+      HAL_Delay(1000);
+  }
+  /* USER CODE END 3 */
+}

@@ -1,0 +1,8 @@
+
+#ifndef SGP_GIT_VERSION_H
+#define SGP_GIT_VERSION_H
+
+#define SGP_DRV_VERSION_STR = 1.0.0
+
+
+#endif /* SGP_GIT_VERSION_H */

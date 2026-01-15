@@ -21,12 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "ssd1306.h"
-#include "ssd1306_tests.h"
-#include "ssd1306_fonts.h"
-#include "ssd1306.h"
-#include "stdlib.h"
-#include"stdint.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -87,9 +82,6 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-  // 1. Initialize the OLED display
-    // ssd1306_Init();
-     HAL_Delay(100); // Short delay to stabilize
 
   /* USER CODE END Init */
 
@@ -114,21 +106,6 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-
-    // Example: Display some text in the loop
-	  uint8_t y = 0;
-	     ssd1306_Fill(Black);
-
-	     #ifdef SSD1306_INCLUDE_FONT_16x26
-	     ssd1306_SetCursor(2, y);
-	     ssd1306_WriteString("Font 16x26", Font_16x26, White);
-	     y += 26;
-	     #endif
-    // You must call UpdateScreen to send the buffer to the physical OLED
-    ssd1306_UpdateScreen();
-
-    // Wait a second before doing it again (optional)
-    HAL_Delay(1000);
 
     /* USER CODE BEGIN 3 */
   }
@@ -233,13 +210,12 @@ static void MX_SPI2_Init(void)
   /* USER CODE END SPI2_Init 1 */
   /* SPI2 parameter configuration*/
   hspi2.Instance = SPI2;
-  hspi2.Init.Mode = SPI_MODE_MASTER;
+  hspi2.Init.Mode = SPI_MODE_SLAVE;
   hspi2.Init.Direction = SPI_DIRECTION_2LINES;
   hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;

@@ -1,0 +1,4 @@
+../Core/Src/sgp40.c:10:16:SGP40_CRC8	24	static
+../Core/Src/sgp40.c:25:19:SGP40_Init	32	static
+../Core/Src/sgp40.c:37:19:SGP40_MeasureRaw	40	static
+../Core/Src/sgp40.c:66:19:SGP40_GetSerial	48	static

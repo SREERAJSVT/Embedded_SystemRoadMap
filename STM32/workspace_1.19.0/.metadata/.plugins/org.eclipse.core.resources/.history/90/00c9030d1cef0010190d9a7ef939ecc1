@@ -1,0 +1,164 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file           : main.c
+  * @brief          : BMP280 SPI Read & Serial Monitor Display
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+
+/* Includes ------------------------------------------------------------------*/
+#include "main.h"  // <--- CRITICAL: This must be here!
+#include <stdio.h>
+#include <string.h>
+#include <stdint.h>
+
+/* Private variables ---------------------------------------------------------*/
+SPI_HandleTypeDef hspi1;   // BMP280 is on SPI1
+UART_HandleTypeDef huart2; // Serial Monitor
+
+/* Private defines -----------------------------------------------------------*/
+#define BMP_CS_PORT GPIOB
+#define BMP_CS_PIN  GPIO_PIN_6
+
+/* Private function prototypes -----------------------------------------------*/
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_USART2_UART_Init(void);
+static void MX_SPI1_Init(void);
+void UART_Print(char* message);
+uint8_t BMP280_ReadReg(uint8_t reg);
+
+/* USER CODE BEGIN 0 */
+void UART_Print(char* message) {
+    HAL_UART_Transmit(&huart2, (uint8_t*)message, strlen(message), 100);
+}
+
+uint8_t BMP280_ReadReg(uint8_t reg) {
+    uint8_t rx_data = 0;
+    uint8_t tx_data = reg | 0x80; // Force MSB to 1 for Read
+
+    HAL_GPIO_WritePin(BMP_CS_PORT, BMP_CS_PIN, GPIO_PIN_RESET);
+
+    // Some modules need a tiny delay or specific timing
+    if(HAL_SPI_Transmit(&hspi1, &tx_data, 1, 100) != HAL_OK) return 0xFF;
+    if(HAL_SPI_Receive(&hspi1, &rx_data, 1, 100) != HAL_OK) return 0xFF;
+
+    HAL_GPIO_WritePin(BMP_CS_PORT, BMP_CS_PIN, GPIO_PIN_SET);
+    return rx_data;
+}
+/* USER CODE END 0 */
+
+int main(void)
+{
+  HAL_Init();
+  SystemClock_Config();
+
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_USART2_UART_Init();
+  MX_SPI1_Init();
+
+  /* USER CODE BEGIN 2 */
+  char msg[100];
+  UART_Print("BMP280 SPI Test Starting...\r\n");
+
+  // Read Chip ID
+  uint8_t chip_id = BMP280_ReadReg(0xD0);
+  sprintf(msg, "Chip ID Found: 0x%02X\r\n", chip_id);
+  UART_Print(msg);
+  /* USER CODE END 2 */
+
+  while (1)
+  {
+    // Read Temperature Data
+    uint8_t t_msb = BMP280_ReadReg(0xFA);
+    uint8_t t_lsb = BMP280_ReadReg(0xFB);
+    uint8_t t_xlsb = BMP280_ReadReg(0xFC);
+
+    int32_t adc_T = (t_msb << 12) | (t_lsb << 4) | (t_xlsb >> 4);
+
+    sprintf(msg, "Raw Temp ADC: %ld\r\n", adc_T);
+    UART_Print(msg);
+
+    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5); // Blink Onboard LED (PA5)
+    HAL_Delay(1000);
+  }
+}
+
+/* --- Peripheral Initialization Functions --- */
+
+static void MX_SPI1_Init(void) {
+  hspi1.Instance = SPI1;
+  hspi1.Init.Mode = SPI_MODE_MASTER;
+  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi1.Init.NSS = SPI_NSS_SOFT;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
+  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  HAL_SPI_Init(&hspi1);
+}
+
+static void MX_USART2_UART_Init(void) {
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  HAL_UART_Init(&huart2);
+}
+
+static void MX_GPIO_Init(void) {
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /* Configure PA5 (LED) */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+  GPIO_InitStruct.Pin = GPIO_PIN_5;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /* Configure PB6 (BMP CS) */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET); // Default HIGH
+  GPIO_InitStruct.Pin = GPIO_PIN_6;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+}
+
+void SystemClock_Config(void) {
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  __HAL_RCC_PWR_CLK_ENABLE();
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = 16;
+  RCC_OscInitStruct.PLL.PLLN = 336;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+  RCC_OscInitStruct.PLL.PLLQ = 2;
+  RCC_OscInitStruct.PLL.PLLR = 2;
+  HAL_RCC_OscConfig(&RCC_OscInitStruct);
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK|RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+  HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2);
+}
+
+void Error_Handler(void) {
+  while (1) {}
+}

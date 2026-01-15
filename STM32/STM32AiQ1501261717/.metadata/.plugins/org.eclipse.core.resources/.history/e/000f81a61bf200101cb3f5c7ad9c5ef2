@@ -1,0 +1,666 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file           : main.c
+  * @brief          : Main program body
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2026 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+/* Includes ------------------------------------------------------------------*/
+#include "main.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdarg.h>
+#include <stdint.h>
+#include <math.h>
+
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
+
+/* USER CODE END Includes */
+
+/* Private typedef -----------------------------------------------------------*/
+/* USER CODE BEGIN PTD */
+
+/* USER CODE END PTD */
+
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+#define SHT41_ADDR 0x44  // 7-bit address
+#define SGP40_ADDR 0x59  // 7-bit address
+
+// SHT41 Commands
+#define SHT41_MEAS_HIGH_PRECISION 0xFD
+#define SHT41_SOFT_RESET 0x94
+
+// SGP40 Commands (from Sensirion driver)
+#define SGP40_CMD_MEASURE_RAW_SIGNAL 0x260F
+#define SGP40_CMD_MEASURE_TEST 0x280E
+#define SGP40_CMD_TURN_HEATER_OFF 0x3615
+#define SGP40_CMD_SOFT_RESET 0x0006
+#define SGP40_CMD_GET_SERIAL 0x3682
+
+// SGP40 default parameters (from datasheet)
+#define SGP40_DEFAULT_HUMIDITY 50.0f  // 50% RH
+#define SGP40_DEFAULT_TEMPERATURE 25.0f  // 25°C
+#define SGP40_WARMUP_TIME_MS 10000  // 10 seconds warmup
+/* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
+
+/* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
+UART_HandleTypeDef huart2;
+
+/* USER CODE BEGIN PV */
+// Print functions
+void print_string(const char *str) {
+    HAL_UART_Transmit(&huart2, (uint8_t*)str, strlen(str), HAL_MAX_DELAY);
+}
+
+void print_int(int value) {
+    char buffer[12];
+    sprintf(buffer, "%d", value);
+    print_string(buffer);
+}
+
+void print_float(float value) {
+    int integer = (int)value;
+    int decimal = (int)(fabs(value - integer) * 100);
+    char buffer[20];
+    sprintf(buffer, "%d.%02d", integer, decimal);
+    print_string(buffer);
+}
+
+void print_hex(uint32_t value, int digits) {
+    char buffer[10];
+    sprintf(buffer, "%0*lX", digits, value);
+    print_string(buffer);
+}
+
+// Sensirion CRC8 function (from official driver)
+static uint8_t sensirion_crc8(const uint8_t *data, uint16_t count) {
+    uint16_t current_byte;
+    uint8_t crc = 0xFF;
+    uint8_t crc_bit;
+
+    for (current_byte = 0; current_byte < count; ++current_byte) {
+        crc ^= data[current_byte];
+        for (crc_bit = 8; crc_bit > 0; --crc_bit) {
+            if (crc & 0x80) {
+                crc = (crc << 1) ^ 0x31;
+            } else {
+                crc = (crc << 1);
+            }
+        }
+    }
+    return crc;
+}
+
+// Convert float to SGP40 format (from Sensirion driver)
+static uint16_t sgp40_convert_float_to_ticks(float value, float scale_factor, float offset) {
+    float scaled_value = (value + offset) * scale_factor;
+    if (scaled_value < 0.0f) {
+        scaled_value = 0.0f;
+    } else if (scaled_value > 65535.0f) {
+        scaled_value = 65535.0f;
+    }
+    return (uint16_t)(scaled_value + 0.5f);  // Round to nearest
+}
+
+// SGP40 state
+typedef struct {
+    uint8_t initialized;
+    uint32_t last_measurement_time;
+    uint16_t serial[3];
+} sgp40_state_t;
+
+sgp40_state_t sgp40_state = {0};
+uint32_t system_start_time = 0;
+/* USER CODE END PV */
+
+/* Private function prototypes -----------------------------------------------*/
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_USART2_UART_Init(void);
+static void MX_I2C1_Init(void);
+/* USER CODE BEGIN PFP */
+
+// Read SHT41 Temperature and Humidity
+HAL_StatusTypeDef SHT41_Read(float *temperature, float *humidity) {
+    uint8_t cmd = SHT41_MEAS_HIGH_PRECISION;
+    uint8_t data[6];
+
+    if(HAL_I2C_Master_Transmit(&hi2c1, SHT41_ADDR << 1, &cmd, 1, 100) != HAL_OK) {
+        return HAL_ERROR;
+    }
+
+    HAL_Delay(10);
+
+    if(HAL_I2C_Master_Receive(&hi2c1, SHT41_ADDR << 1, data, 6, 100) != HAL_OK) {
+        return HAL_ERROR;
+    }
+
+    uint16_t temp_raw = (data[0] << 8) | data[1];
+    *temperature = -45.0f + (175.0f * temp_raw) / 65535.0f;
+
+    uint16_t hum_raw = (data[3] << 8) | data[4];
+    *humidity = -6.0f + (125.0f * hum_raw) / 65535.0f;
+
+    if(*humidity < 0.0f) *humidity = 0.0f;
+    if(*humidity > 100.0f) *humidity = 100.0f;
+
+    return HAL_OK;
+}
+
+// SGP40 I2C write with CRC (Sensirion style)
+static HAL_StatusTypeDef sgp40_i2c_write(uint16_t command, const uint16_t *data_words, uint16_t num_words) {
+    uint8_t buffer[8];  // Max: 2 bytes command + 3 words * 2 bytes + 3 CRC
+    uint16_t index = 0;
+
+    // Add command
+    buffer[index++] = command >> 8;
+    buffer[index++] = command & 0xFF;
+
+    // Add data words with CRC
+    for (uint16_t i = 0; i < num_words; ++i) {
+        buffer[index++] = data_words[i] >> 8;
+        buffer[index++] = data_words[i] & 0xFF;
+        buffer[index++] = sensirion_crc8(&buffer[index - 2], 2);
+    }
+
+    return HAL_I2C_Master_Transmit(&hi2c1, 0x59 << 1, buffer, index, 100);
+}
+
+// SGP40 I2C read with CRC check
+static HAL_StatusTypeDef sgp40_i2c_read(uint16_t *data_words, uint16_t num_words) {
+    uint8_t buffer[9];  // Max: 3 words * 3 bytes (2 data + 1 CRC)
+    uint16_t bytes_to_read = num_words * 3;
+
+    if (HAL_I2C_Master_Receive(&hi2c1, 0x59 << 1, buffer, bytes_to_read, 100) != HAL_OK) {
+        return HAL_ERROR;
+    }
+
+    // Verify CRC for each word
+    for (uint16_t i = 0; i < num_words; ++i) {
+        uint8_t *word_ptr = &buffer[i * 3];
+        uint8_t crc = sensirion_crc8(word_ptr, 2);
+
+        if (crc != word_ptr[2]) {
+            return HAL_ERROR;  // CRC mismatch
+        }
+
+        data_words[i] = (word_ptr[0] << 8) | word_ptr[1];
+    }
+
+    return HAL_OK;
+}
+
+// SGP40 Soft Reset (from Sensirion driver)
+HAL_StatusTypeDef SGP40_SoftReset(void) {
+    uint8_t buffer[2] = {SGP40_CMD_SOFT_RESET >> 8, SGP40_CMD_SOFT_RESET & 0xFF};
+
+    if (HAL_I2C_Master_Transmit(&hi2c1, 0x59 << 1, buffer, 2, 100) != HAL_OK) {
+        return HAL_ERROR;
+    }
+
+    HAL_Delay(50);
+    return HAL_OK;
+}
+
+// SGP40 Get Serial Number (from Sensirion driver)
+HAL_StatusTypeDef SGP40_GetSerial(uint16_t *serial) {
+    uint16_t command = SGP40_CMD_GET_SERIAL;
+    uint16_t data[3];
+
+    // Write command
+    if (sgp40_i2c_write(command, NULL, 0) != HAL_OK) {
+        return HAL_ERROR;
+    }
+
+    HAL_Delay(10);
+
+    // Read 3 words (6 bytes + 3 CRC)
+    if (sgp40_i2c_read(data, 3) != HAL_OK) {
+        return HAL_ERROR;
+    }
+
+    // Store serial
+    for (int i = 0; i < 3; i++) {
+        serial[i] = data[i];
+    }
+
+    return HAL_OK;
+}
+
+// SGP40 Self Test (from Sensirion driver)
+HAL_StatusTypeDef SGP40_SelfTest(uint16_t *test_result) {
+    uint16_t command = SGP40_CMD_MEASURE_TEST;
+
+    // Write command
+    if (sgp40_i2c_write(command, NULL, 0) != HAL_OK) {
+        return HAL_ERROR;
+    }
+
+    HAL_Delay(250);  // Self-test takes 250ms
+
+    // Read result
+    if (sgp40_i2c_read(test_result, 1) != HAL_OK) {
+        return HAL_ERROR;
+    }
+
+    return HAL_OK;
+}
+
+// SGP40 Measure Raw with Compensation (from Sensirion driver)
+HAL_StatusTypeDef SGP40_MeasureRaw(float temperature, float humidity, uint16_t *raw_signal) {
+    uint16_t command = SGP40_CMD_MEASURE_RAW_SIGNAL;
+
+    // Convert humidity to ticks (0-100% -> 0-65535)
+    uint16_t humidity_ticks = sgp40_convert_float_to_ticks(humidity, 65535.0f / 100.0f, 0.0f);
+
+    // Convert temperature to ticks (-45°C to 130°C -> 0-65535)
+    uint16_t temperature_ticks = sgp40_convert_float_to_ticks(temperature, 65535.0f / 175.0f, 45.0f);
+
+    // Prepare data words
+    uint16_t data_words[2] = {humidity_ticks, temperature_ticks};
+
+    // Write command with compensation data
+    if (sgp40_i2c_write(command, data_words, 2) != HAL_OK) {
+        return HAL_ERROR;
+    }
+
+    HAL_Delay(30);  // Measurement takes 30ms
+
+    // Read raw signal
+    if (sgp40_i2c_read(raw_signal, 1) != HAL_OK) {
+        return HAL_ERROR;
+    }
+
+    return HAL_OK;
+}
+
+// Initialize SGP40 (Sensirion style)
+HAL_StatusTypeDef SGP40_Init(void) {
+    uint16_t test_result;
+    uint16_t serial[3];
+
+    print_string("Initializing SGP40...\r\n");
+
+    // 1. Get serial number (optional but useful)
+    if (SGP40_GetSerial(serial) == HAL_OK) {
+        print_string("  Serial: ");
+        print_hex(serial[0], 4);
+        print_hex(serial[1], 4);
+        print_hex(serial[2], 4);
+        print_string("\r\n");
+    } else {
+        print_string("  Serial: FAILED\r\n");
+    }
+
+    // 2. Self-test (MANDATORY)
+    if (SGP40_SelfTest(&test_result) != HAL_OK) {
+        print_string("  Self test: FAILED (I2C)\r\n");
+        return HAL_ERROR;
+    }
+
+    print_string("  Self test result: ");
+    print_hex(test_result, 4);
+
+    if (test_result != 0xD400) {
+        print_string(" (FAIL)\r\n");
+        return HAL_ERROR;
+    }
+    print_string(" (PASS)\r\n");
+
+    sgp40_state.initialized = 1;
+    sgp40_state.last_measurement_time = HAL_GetTick();
+
+    print_string("SGP40 Initialized Successfully!\r\n");
+    return HAL_OK;
+}
+
+
+// Simple I2C scanner
+void I2C_Scan(void) {
+    uint8_t i, found = 0;
+
+    print_string("I2C Scan: ");
+
+    for (i = 1; i < 128; i++) {
+        if (HAL_I2C_IsDeviceReady(&hi2c1, i << 1, 1, 10) == HAL_OK) {
+            if (found > 0) print_string(", ");
+            print_string("0x");
+            print_hex(i, 2);
+            found++;
+        }
+    }
+
+    if (found == 0) {
+        print_string("No devices found");
+    }
+    print_string("\r\n");
+}
+/* USER CODE END PFP */
+
+/* Private user code ---------------------------------------------------------*/
+/* USER CODE BEGIN 0 */
+
+/* USER CODE END 0 */
+
+/**
+  * @brief  The application entry point.
+  * @retval int
+  */
+int main(void)
+{
+  /* USER CODE BEGIN 1 */
+
+  /* USER CODE END 1 */
+
+  /* MCU Configuration--------------------------------------------------------*/
+
+  HAL_Init();
+  SystemClock_Config();
+  MX_GPIO_Init();
+  MX_USART2_UART_Init();
+  MX_I2C1_Init();
+
+  /* USER CODE BEGIN 2 */
+
+  float temperature = 0, humidity = 0;
+  uint16_t sgp40_raw = 0;
+  uint32_t startup_time = HAL_GetTick();
+
+  // Initialize LED
+  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+  HAL_Delay(200);
+  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+
+  print_string("\r\n\r\n");
+  print_string("==========================================\r\n");
+  print_string("SHT41 + SGP40 Sensor System\r\n");
+  print_string("Based on Sensirion Official Driver Patterns\r\n");
+  print_string("==========================================\r\n\r\n");
+
+  // I2C Scan
+  I2C_Scan();
+
+  // Warm-up period for SGP40 (CRITICAL!)
+  print_string("\r\nWarming up SGP40 (10 seconds)...\r\n");
+  for (int i = 0; i < 10; i++) {
+      HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+      print_string(".");
+      HAL_Delay(1000);
+  }
+  print_string("\r\n\r\n");
+
+  // Initialize SGP40
+  if (SGP40_Init() != HAL_OK) {
+      print_string("WARNING: SGP40 initialization failed!\r\n");
+      print_string("Will try to use with default parameters.\r\n");
+  }
+
+  print_string("\r\n");
+  print_string("Starting Continuous Measurements:\r\n");
+  print_string("=================================\r\n\r\n");
+
+  uint32_t measurement_count = 0;
+  uint32_t sgp40_success_count = 0;
+  uint32_t sgp40_error_count = 0;
+
+  /* USER CODE END 2 */
+
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
+  while (1)
+  {
+      measurement_count++;
+
+      // Toggle LED
+      HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+
+      // Read SHT41
+      if (SHT41_Read(&temperature, &humidity) == HAL_OK) {
+          print_string("[");
+          print_int(measurement_count);
+          print_string("] SHT41: ");
+          print_float(temperature);
+          print_string("°C, ");
+          print_float(humidity);
+          print_string("% RH\r\n");
+      } else {
+          print_string("[");
+          print_int(measurement_count);
+          print_string("] SHT41: ERROR\r\n");
+          temperature = SGP40_DEFAULT_TEMPERATURE;
+          humidity = SGP40_DEFAULT_HUMIDITY;
+      }
+
+      // Read SGP40 with SHT41 compensation
+      if (sgp40_state.initialized) {
+          if (SGP40_MeasureRaw(temperature, humidity, &sgp40_raw) == HAL_OK) {
+              sgp40_success_count++;
+
+              print_string("[");
+              print_int(measurement_count);
+              print_string("] SGP40: Raw=");
+              print_int(sgp40_raw);
+
+              // Convert raw signal to VOC index (simplified)
+              // For accurate VOC, use Sensirion's VOC Algorithm
+              if (sgp40_raw > 10000) {
+                  // Simplified conversion (check Sensirion VOC Algorithm for accurate conversion)
+                  float voc_index = (sgp40_raw - 20000) / 100.0f;
+                  if (voc_index < 0) voc_index = 0;
+
+                  print_string(" (VOC Index≈");
+                  print_float(voc_index);
+                  print_string(")");
+              }
+
+              print_string(" [OK:");
+              print_int(sgp40_success_count);
+              print_string("]\r\n");
+
+              sgp40_error_count = 0;
+          } else {
+              sgp40_error_count++;
+              print_string("[");
+              print_int(measurement_count);
+              print_string("] SGP40: ERROR [");
+              print_int(sgp40_error_count);
+              print_string("]\r\n");
+
+              // Re-initialize after too many errors
+              if (sgp40_error_count > 10) {
+                  print_string("Re-initializing SGP40...\r\n");
+                  SGP40_Init();
+                  sgp40_error_count = 0;
+              }
+          }
+      } else {
+          // Try to initialize if not already
+          if (measurement_count % 20 == 0) {  // Try every 20 readings
+              SGP40_Init();
+          }
+          print_string("[");
+          print_int(measurement_count);
+          print_string("] SGP40: Not initialized\r\n");
+      }
+
+      print_string("-----\r\n\r\n");
+
+      HAL_Delay(2000);  // 2 second measurement interval
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
+  }
+  /* USER CODE END 3 */
+}
+
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+void SystemClock_Config(void)
+{
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+  __HAL_RCC_PWR_CLK_ENABLE();
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
+
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = 16;
+  RCC_OscInitStruct.PLL.PLLN = 336;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+  RCC_OscInitStruct.PLL.PLLQ = 2;
+  RCC_OscInitStruct.PLL.PLLR = 2;
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+}
+
+/**
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART2_UART_Init(void)
+{
+  /* USER CODE BEGIN USART2_Init 0 */
+
+  /* USER CODE END USART2_Init 0 */
+
+  /* USER CODE BEGIN USART2_Init 1 */
+
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART2_Init 2 */
+
+  /* USER CODE END USART2_Init 2 */
+}
+
+/**
+  * @brief GPIO Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_GPIO_Init(void)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOH_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+
+  GPIO_InitStruct.Pin = B1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+
+  GPIO_InitStruct.Pin = LD2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+}
+
+/* USER CODE BEGIN 4 */
+
+/* USER CODE END 4 */
+
+/**
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
+void Error_Handler(void)
+{
+  __disable_irq();
+  while (1)
+  {
+  }
+}
+
+#ifdef USE_FULL_ASSERT
+void assert_failed(uint8_t *file, uint32_t line)
+{
+}
+#endif

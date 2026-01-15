@@ -46,7 +46,9 @@ static const uint8_t SGP40_I2C_ADDRESS = 0x59;
 #define SGP40_CMD_GET_FEATURESET_DURATION_US 1000
 #define SGP40_CMD_GET_FEATURESET_WORDS 1
 #define SGP40_CMD_GET_FEATURESET 0x202f
-
+const char* sgp40_get_driver_version(void) {
+    return "1.0.0"; // Manually return a version string
+}
 int16_t sgp40_measure_raw_blocking_read(uint16_t* sraw) {
     int16_t ret;
 
@@ -112,13 +114,6 @@ int16_t sgp40_read_raw(uint16_t* sraw) {
                                     SENSIRION_NUM_WORDS(*sraw));
 }
 
-const char* sgp40_get_driver_version(void) {
-    return SGP_DRV_VERSION_STR;
-}
-
-uint8_t sgp40_get_configured_address(void) {
-    return SGP40_I2C_ADDRESS;
-}
 
 int16_t sgp40_get_serial_id(uint8_t* serial_id) {
     int16_t ret;

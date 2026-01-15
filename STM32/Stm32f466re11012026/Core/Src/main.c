@@ -1,0 +1,136 @@
+#include "main.h"
+#include "ssd1306.h"
+#include "sgp40.h"
+#include <stdio.h>
+#include <string.h>
+
+I2C_HandleTypeDef hi2c1;
+SH1106_HandleTypeDef oled;
+SGP40_HandleTypeDef sgp40;
+
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_I2C1_Init(void);
+
+int main(void) {
+    HAL_Init();
+    SystemClock_Config();
+    MX_GPIO_Init();
+    MX_I2C1_Init();
+
+    // Initialize OLED
+    SH1106_Init(&oled, &hi2c1);
+    SH1106_Clear(&oled);
+    SH1106_DrawString(&oled, "SGP40 Monitor", 0, 0, 1);
+    SH1106_UpdateScreen(&oled);
+    HAL_Delay(2000);
+
+    // Initialize SGP40
+    if(SGP40_Init(&sgp40, &hi2c1) != HAL_OK) {
+        SH1106_Clear(&oled);
+        SH1106_DrawString(&oled, "SGP40 Error", 0, 0, 1);
+        SH1106_UpdateScreen(&oled);
+        while(1);
+    }
+
+    SH1106_Clear(&oled);
+    SH1106_DrawString(&oled, "SGP40 Ready", 0, 0, 1);
+    SH1106_UpdateScreen(&oled);
+    HAL_Delay(1000);
+
+    char buffer[32];
+    uint16_t raw_signal;
+
+    while(1) {
+        // Measure raw signal
+        if(SGP40_MeasureRaw(&sgp40, &raw_signal) == HAL_OK) {
+            sgp40.raw_signal = raw_signal;
+
+            // Simple VOC calculation (for accurate VOC, use Sensirion's algorithm)
+            sgp40.voc_index = raw_signal;
+
+            // Update OLED
+            SH1106_Clear(&oled);
+
+            // Draw title
+            SH1106_DrawString(&oled, "Air Quality", 0, 0, 1);
+
+            // Draw raw signal
+            sprintf(buffer, "Raw: %d", raw_signal);
+            SH1106_DrawString(&oled, buffer, 0, 10, 1);
+
+            // Draw VOC index
+            sprintf(buffer, "VOC: %lu", sgp40.voc_index);
+            SH1106_DrawString(&oled, buffer, 0, 20, 1);
+
+            SH1106_UpdateScreen(&oled);
+        }
+
+        HAL_Delay(2000); // Measure every 2 seconds
+    }
+}
+
+void SystemClock_Config(void) {
+    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+    RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+    __HAL_RCC_PWR_CLK_ENABLE();
+    __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+    RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+    RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+    RCC_OscInitStruct.PLL.PLLM = 8;
+    RCC_OscInitStruct.PLL.PLLN = 180;
+    RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+    RCC_OscInitStruct.PLL.PLLQ = 4;
+    HAL_RCC_OscConfig(&RCC_OscInitStruct);
+
+    RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                                |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
+    HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5);
+}
+
+static void MX_I2C1_Init(void) {
+    hi2c1.Instance = I2C1;
+    hi2c1.Init.ClockSpeed = 100000;
+    hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+    hi2c1.Init.OwnAddress1 = 0;
+    hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+    hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+    hi2c1.Init.OwnAddress2 = 0;
+    hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+    hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+    HAL_I2C_Init(&hi2c1);
+}
+
+static void MX_GPIO_Init(void) {
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+
+    // OLED Reset pin
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+    GPIO_InitStruct.Pin = GPIO_PIN_13;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+    // I2C1 pins
+    GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+}
+
+void Error_Handler(void) {
+    while(1);
+}

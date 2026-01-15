@@ -1,0 +1,83 @@
+/*
+ * sensirion_i2c.c
+ *
+ *  Created on: Jan 11, 2026
+ *      Author: sreer
+ */
+#include "sensirion_i2c.h"
+#include "stm32f4xx_hal.h"
+
+extern I2C_HandleTypeDef hi2c1;
+
+#ifndef STATUS_OK
+#define STATUS_OK 0
+#endif
+
+#ifndef STATUS_FAIL
+#define STATUS_FAIL -1
+#endif /* <--- This was missing */
+
+#define I2C_TIMEOUT 100
+
+static uint8_t sensirion_crc8(const uint8_t* data, uint8_t len) {
+    uint8_t crc = 0xFF;
+    for (uint8_t i = 0; i < len; i++) {
+        crc ^= data[i];
+        for (uint8_t b = 0; b < 8; b++) {
+            crc = (crc & 0x80) ? (crc << 1) ^ 0x31 : (crc << 1);
+        }
+    }
+    return crc;
+}
+
+void sensirion_i2c_init(void) {
+    /* I2C already initialized by CubeMX */
+}
+
+int16_t sensirion_i2c_write_cmd(uint8_t address, uint16_t command) {
+    uint8_t buf[2] = { command >> 8, command & 0xFF };
+    return (HAL_I2C_Master_Transmit(&hi2c1, address << 1, buf, 2, I2C_TIMEOUT) == HAL_OK)
+           ? STATUS_OK : STATUS_FAIL;
+}
+
+int16_t sensirion_i2c_write_cmd_with_args(uint8_t address, uint16_t command,
+                                         const uint16_t* args,
+                                         uint8_t num_args) {
+    uint8_t buf[2 + num_args * 3];
+    buf[0] = command >> 8;
+    buf[1] = command & 0xFF;
+
+    for (uint8_t i = 0; i < num_args; i++) {
+        buf[2 + i * 3] = args[i] >> 8;
+        buf[3 + i * 3] = args[i] & 0xFF;
+        buf[4 + i * 3] = sensirion_crc8(&buf[2 + i * 3], 2);
+    }
+
+    return (HAL_I2C_Master_Transmit(&hi2c1, address << 1, buf,
+            sizeof(buf), I2C_TIMEOUT) == HAL_OK) ? STATUS_OK : STATUS_FAIL;
+}
+
+int16_t sensirion_i2c_read_words(uint8_t address, uint16_t* data_words,
+                                 uint16_t num_words) {
+    uint8_t buf[num_words * 3];
+
+    if (HAL_I2C_Master_Receive(&hi2c1, address << 1, buf,
+                              sizeof(buf), I2C_TIMEOUT) != HAL_OK)
+        return STATUS_FAIL;
+
+    for (uint16_t i = 0; i < num_words; i++) {
+        if (sensirion_crc8(&buf[i * 3], 2) != buf[i * 3 + 2])
+            return STATUS_FAIL;
+        data_words[i] = (buf[i * 3] << 8) | buf[i * 3 + 1];
+    }
+    return STATUS_OK;
+}
+
+int16_t sensirion_i2c_read_words_as_bytes(uint8_t address, uint8_t* data,
+                                          uint16_t num_words) {
+    return (HAL_I2C_Master_Receive(&hi2c1, address << 1,
+            data, num_words * 3, I2C_TIMEOUT) == HAL_OK)
+            ? STATUS_OK : STATUS_FAIL;
+}
+
+

@@ -1,0 +1,112 @@
+/*
+ * ssd1306.c
+ *
+ * Created on: Jan 11, 2026
+ * Author: sreer
+ */
+
+#include "ssd1306.h"
+#include "fonts.h"
+#include <string.h>
+
+static void SH1106_WriteCommand(SH1106_HandleTypeDef *hdev, uint8_t cmd) {
+    uint8_t data[2] = {0x00, cmd};
+    HAL_I2C_Master_Transmit(hdev->hi2c, SH1106_I2C_ADDR << 1, data, 2, HAL_MAX_DELAY);
+}
+
+static void SH1106_WriteData(SH1106_HandleTypeDef *hdev, uint8_t* data, uint16_t size) {
+    uint8_t *buffer = malloc(size + 1);
+    buffer[0] = 0x40;
+    memcpy(&buffer[1], data, size);
+    HAL_I2C_Master_Transmit(hdev->hi2c, SH1106_I2C_ADDR << 1, buffer, size + 1, HAL_MAX_DELAY);
+    free(buffer);
+}
+
+void SH1106_Init(SH1106_HandleTypeDef *hdev, I2C_HandleTypeDef *hi2c) {
+    hdev->hi2c = hi2c;
+    memset(hdev->buffer, 0, sizeof(hdev->buffer));
+
+    // Reset sequence
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+    HAL_Delay(10);
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
+    HAL_Delay(10);
+
+    // Initialization commands
+    SH1106_WriteCommand(hdev, SH1106_DISPLAYOFF);
+    SH1106_WriteCommand(hdev, SH1106_SETDISPLAYCLOCKDIV);
+    SH1106_WriteCommand(hdev, 0x80);
+    SH1106_WriteCommand(hdev, SH1106_SETMULTIPLEX);
+    SH1106_WriteCommand(hdev, 0x1F); // 32-1
+    SH1106_WriteCommand(hdev, SH1106_SETDISPLAYOFFSET);
+    SH1106_WriteCommand(hdev, 0x00);
+    SH1106_WriteCommand(hdev, SH1106_SETSTARTLINE | 0x00);
+    SH1106_WriteCommand(hdev, SH1106_CHARGEPUMP);
+    SH1106_WriteCommand(hdev, 0x14);
+    SH1106_WriteCommand(hdev, SH1106_MEMORYMODE);
+    SH1106_WriteCommand(hdev, 0x00);
+    SH1106_WriteCommand(hdev, SH1106_SEGREMAP | 0x01);
+    SH1106_WriteCommand(hdev, SH1106_COMSCANDEC);
+    SH1106_WriteCommand(hdev, SH1106_SETCOMPINS);
+    SH1106_WriteCommand(hdev, 0x02);
+    SH1106_WriteCommand(hdev, SH1106_SETCONTRAST);
+    SH1106_WriteCommand(hdev, 0x7F);
+    SH1106_WriteCommand(hdev, SH1106_SETPRECHARGE);
+    SH1106_WriteCommand(hdev, 0xF1);
+    SH1106_WriteCommand(hdev, SH1106_SETVCOMDETECT);
+    SH1106_WriteCommand(hdev, 0x40);
+    SH1106_WriteCommand(hdev, SH1106_DISPLAYALLON_RESUME);
+    SH1106_WriteCommand(hdev, SH1106_NORMALDISPLAY);
+    SH1106_WriteCommand(hdev, SH1106_DISPLAYON);
+}
+
+void SH1106_DrawPixel(SH1106_HandleTypeDef *hdev, uint8_t x, uint8_t y, uint8_t color) {
+    if(x >= SH1106_WIDTH || y >= SH1106_HEIGHT) return;
+
+    if(color) {
+        hdev->buffer[x + (y / 8) * SH1106_WIDTH] |= (1 << (y % 8));
+    } else {
+        hdev->buffer[x + (y / 8) * SH1106_WIDTH] &= ~(1 << (y % 8));
+    }
+}
+
+void SH1106_UpdateScreen(SH1106_HandleTypeDef *hdev) {
+    for(uint8_t i = 0; i < 4; i++) {
+        SH1106_WriteCommand(hdev, 0xB0 + i);
+        SH1106_WriteCommand(hdev, 0x00);
+        SH1106_WriteCommand(hdev, 0x10);
+        SH1106_WriteData(hdev, &hdev->buffer[SH1106_WIDTH * i], SH1106_WIDTH);
+    }
+}
+
+void SH1106_Clear(SH1106_HandleTypeDef *hdev) {
+    memset(hdev->buffer, 0, sizeof(hdev->buffer));
+}
+
+void SH1106_DrawChar(SH1106_HandleTypeDef *hdev, char ch, uint8_t x, uint8_t y, uint8_t size) {
+    uint8_t i, j;
+    for(i = 0; i < 5; i++) {
+        uint8_t c = Font_7x10.data[(ch - 32) * 5 + i];
+        for(j = 0; j < 8; j++) {
+            if((c >> j) & 0x01) {
+                if(size == 1) {
+                    SH1106_DrawPixel(hdev, x + i, y + j, 1);
+                } else {
+                    // Draw scaled pixel
+                    SH1106_DrawPixel(hdev, x + i * size, y + j * size, 1);
+                    SH1106_DrawPixel(hdev, x + i * size + 1, y + j * size, 1);
+                    SH1106_DrawPixel(hdev, x + i * size, y + j * size + 1, 1);
+                    SH1106_DrawPixel(hdev, x + i * size + 1, y + j * size + 1, 1);
+                }
+            }
+        }
+    }
+}
+
+void SH1106_DrawString(SH1106_HandleTypeDef *hdev, char *str, uint8_t x, uint8_t y, uint8_t size) {
+    while(*str) {
+        SH1106_DrawChar(hdev, *str, x, y, size);
+        x += 6 * size;
+        str++;
+    }
+}

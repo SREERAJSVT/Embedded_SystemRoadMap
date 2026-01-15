@@ -49,6 +49,7 @@
  * define the integral types yourself (see below).
  */
 #include <stdint.h>
+#include "stm32f4xx_hal.h"   // change if using F1/F7/G0 etc
 
 /**
  * Typedef section for types commonly defined in <stdint.h>

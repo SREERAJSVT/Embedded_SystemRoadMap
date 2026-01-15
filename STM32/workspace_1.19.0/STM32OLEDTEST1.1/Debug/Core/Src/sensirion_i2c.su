@@ -1,0 +1,6 @@
+../Core/Src/sensirion_i2c.c:22:16:sensirion_crc8	24	static
+../Core/Src/sensirion_i2c.c:33:6:sensirion_i2c_init	4	static
+../Core/Src/sensirion_i2c.c:37:9:sensirion_i2c_write_cmd	32	static
+../Core/Src/sensirion_i2c.c:43:9:sensirion_i2c_write_cmd_with_args	64	dynamic
+../Core/Src/sensirion_i2c.c:60:9:sensirion_i2c_read_words	64	dynamic
+../Core/Src/sensirion_i2c.c:76:9:sensirion_i2c_read_words_as_bytes	24	static
