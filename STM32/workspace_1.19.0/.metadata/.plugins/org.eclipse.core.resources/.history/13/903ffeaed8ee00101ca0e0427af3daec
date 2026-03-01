@@ -1,0 +1,20 @@
+#ifndef SGP_GIT_VERSION_H
+#define SGP_GIT_VERSION_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Driver version numbers */
+#define SGP_DRV_VERSION_MAJOR 7
+#define SGP_DRV_VERSION_MINOR 1
+#define SGP_DRV_VERSION_PATCH 2
+
+/* Driver version string */
+extern const char *sgp_drv_version_str;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* SGP_GIT_VERSION_H */

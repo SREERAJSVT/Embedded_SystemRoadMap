@@ -1,0 +1,46 @@
+// Simple test to verify basic functionality
+void Test_SHT41_Raw(void) {
+    uint8_t cmd = 0xFD;
+    uint8_t data[6];
+
+    print_string("Testing SHT41 raw read...\r\n");
+
+    // Send command
+    HAL_I2C_Master_Transmit(&hi2c1, 0x44 << 1, &cmd, 1, 100);
+    HAL_Delay(10);
+
+    // Read data
+    HAL_I2C_Master_Receive(&hi2c1, 0x44 << 1, data, 6, 100);
+
+    // Print raw hex
+    print_string("Raw: ");
+    for(int i=0; i<6; i++) {
+        char hex[4];
+        sprintf(hex, "%02X ", data[i]);
+        print_string(hex);
+    }
+    print_string("\r\n");
+
+    // Manual calculation
+    uint16_t temp_raw = (data[0] << 8) | data[1];
+    uint16_t hum_raw = (data[3] << 8) | data[4];
+
+    print_string("Temp raw: ");
+    print_int(temp_raw);
+    print_string(" Hum raw: ");
+    print_int(hum_raw);
+    print_string("\r\n");
+
+    // Calculate manually
+    float temp = -45.0 + (175.0 * temp_raw) / 65535.0;
+    float hum = -6.0 + (125.0 * hum_raw) / 65535.0;
+
+    print_string("Calculated: T=");
+    char buf[20];
+    sprintf(buf, "%.2f", temp);
+    print_string(buf);
+    print_string("C, H=");
+    sprintf(buf, "%.1f", hum);
+    print_string(buf);
+    print_string("%\r\n");
+}

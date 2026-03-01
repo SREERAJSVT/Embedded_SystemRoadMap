@@ -1,0 +1,653 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file           : main.c
+  * @brief          : Main program body
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2026 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+/* Includes ------------------------------------------------------------------*/
+#include "main.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdarg.h>
+#include <stdint.h>
+
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
+
+/* USER CODE END Includes */
+
+/* Private typedef -----------------------------------------------------------*/
+/* USER CODE BEGIN PTD */
+
+/* USER CODE END PTD */
+
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+#define SHT41_ADDR 0x44  // 7-bit address
+#define SGP40_ADDR 0x59  // 7-bit address
+
+// SHT41 Commands
+#define SHT41_MEAS_HIGH_PRECISION 0xFD
+#define SHT41_SOFT_RESET 0x94
+/* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
+
+/* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
+UART_HandleTypeDef huart2;
+
+/* USER CODE BEGIN PV */
+// Simple print function
+void print_string(const char *str) {
+    HAL_UART_Transmit(&huart2, (uint8_t*)str, strlen(str), HAL_MAX_DELAY);
+}
+
+// Simple print integer
+void print_int(int value) {
+    char buffer[12];
+    sprintf(buffer, "%d", value);
+    print_string(buffer);
+}
+
+// Simple print float (2 decimal places)
+void print_float(float value) {
+    int integer = (int)value;
+    int decimal = (int)((value - integer) * 100);
+    if(decimal < 0) decimal = -decimal;
+
+    char buffer[20];
+    sprintf(buffer, "%d.%02d", integer, decimal);
+    print_string(buffer);
+}
+
+// Print hex value
+void print_hex(uint32_t value, int digits) {
+    char buffer[10];
+    sprintf(buffer, "%0*lX", digits, value);
+    print_string(buffer);
+}
+
+uint8_t sgp40_initialized = 0;
+/* USER CODE END PV */
+
+/* Private function prototypes -----------------------------------------------*/
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_USART2_UART_Init(void);
+static void MX_I2C1_Init(void);
+/* USER CODE BEGIN PFP */
+
+// Read SHT41 Temperature and Humidity
+HAL_StatusTypeDef SHT41_Read(float *temperature, float *humidity) {
+    uint8_t cmd = SHT41_MEAS_HIGH_PRECISION;
+    uint8_t data[6];
+
+    // Send measurement command
+    if(HAL_I2C_Master_Transmit(&hi2c1, SHT41_ADDR << 1, &cmd, 1, 100) != HAL_OK) {
+        return HAL_ERROR;
+    }
+
+    // Wait for measurement
+    HAL_Delay(10);
+
+    // Read 6 bytes of data
+    if(HAL_I2C_Master_Receive(&hi2c1, SHT41_ADDR << 1, data, 6, 100) != HAL_OK) {
+        return HAL_ERROR;
+    }
+
+    // Convert temperature (first 2 bytes)
+    uint16_t temp_raw = (data[0] << 8) | data[1];
+    *temperature = -45.0f + (175.0f * temp_raw) / 65535.0f;
+
+    // Convert humidity (bytes 3-4)
+    uint16_t hum_raw = (data[3] << 8) | data[4];
+    *humidity = -6.0f + (125.0f * hum_raw) / 65535.0f;
+
+    // Clamp humidity
+    if(*humidity < 0.0f) *humidity = 0.0f;
+    if(*humidity > 100.0f) *humidity = 100.0f;
+
+    return HAL_OK;
+}
+
+// FIXED SGP40 ReadRaw with bus recovery
+HAL_StatusTypeDef SGP40_ReadRaw(uint16_t *raw_value) {
+    uint8_t cmd[2] = {0x26, 0x0F};  // Measure raw command
+    uint8_t data[3];
+    HAL_StatusTypeDef status;
+
+    // Send command with bus clearing
+    // Clear any pending bus issues
+    __HAL_I2C_CLEAR_FLAG(&hi2c1, I2C_FLAG_AF);  // Clear ACK failure
+    __HAL_I2C_CLEAR_FLAG(&hi2c1, I2C_FLAG_BERR);  // Clear bus error
+
+    // Generate STOP condition to clear bus
+    hi2c1.Instance->CR1 |= I2C_CR1_STOP;
+    while(hi2c1.Instance->SR2 & I2C_SR2_BUSY);  // Wait for bus free
+
+    // Send measure command
+    status = HAL_I2C_Master_Transmit(&hi2c1, SGP40_ADDR << 1, cmd, 2, 100);
+    if(status != HAL_OK) {
+        // Try one more time with reset
+        hi2c1.Instance->CR1 |= I2C_CR1_STOP;
+        while(hi2c1.Instance->SR2 & I2C_SR2_BUSY);
+        HAL_Delay(1);
+
+        status = HAL_I2C_Master_Transmit(&hi2c1, SGP40_ADDR << 1, cmd, 2, 100);
+        if(status != HAL_OK) {
+            return status;
+        }
+    }
+
+    // Wait for measurement (SGP40 needs 30ms for raw reading)
+    HAL_Delay(50);
+
+    // Read result with bus clearing before read
+    hi2c1.Instance->CR1 |= I2C_CR1_STOP;
+    while(hi2c1.Instance->SR2 & I2C_SR2_BUSY);
+    HAL_Delay(1);
+
+    status = HAL_I2C_Master_Receive(&hi2c1, SGP40_ADDR << 1, data, 3, 100);
+    if(status != HAL_OK) {
+        return status;
+    }
+
+    *raw_value = (data[0] << 8) | data[1];
+
+    // Validate response (SGP40 typical range: 20000-60000)
+    if(*raw_value < 10000 || *raw_value > 60000) {
+        // Try one more time with fresh reading
+        hi2c1.Instance->CR1 |= I2C_CR1_STOP;
+        while(hi2c1.Instance->SR2 & I2C_SR2_BUSY);
+        HAL_Delay(100);
+        return HAL_ERROR;
+    }
+
+    return HAL_OK;
+}
+
+// Simple SGP40 test - minimal approach
+void SGP40_MinimalTest(void) {
+    uint8_t cmd[2];
+    uint8_t data[3];
+    HAL_StatusTypeDef status;
+
+    print_string("\r\n=== SGP40 MINIMAL TEST ===\r\n");
+
+    // 1. Clear bus
+    hi2c1.Instance->CR1 |= I2C_CR1_STOP;
+    while(hi2c1.Instance->SR2 & I2C_SR2_BUSY);
+    HAL_Delay(10);
+
+    // 2. Test Get Features (should work)
+    print_string("1. Get Features... ");
+    cmd[0] = 0x20;
+    cmd[1] = 0x2F;
+
+    hi2c1.Instance->CR1 |= I2C_CR1_STOP;
+    while(hi2c1.Instance->SR2 & I2C_SR2_BUSY);
+
+    status = HAL_I2C_Master_Transmit(&hi2c1, SGP40_ADDR << 1, cmd, 2, 100);
+    if(status == HAL_OK) {
+        HAL_Delay(10);
+
+        hi2c1.Instance->CR1 |= I2C_CR1_STOP;
+        while(hi2c1.Instance->SR2 & I2C_SR2_BUSY);
+
+        status = HAL_I2C_Master_Receive(&hi2c1, SGP40_ADDR << 1, data, 3, 100);
+        if(status == HAL_OK) {
+            uint16_t features = (data[0] << 8) | data[1];
+            print_string("OK: 0x");
+            print_hex(features, 4);
+            print_string(" (Expected: 0x3240)\r\n");
+
+            if(features == 0x3240) {
+                print_string("   -> Genuine SGP40 detected!\r\n");
+            }
+        } else {
+            print_string("RX Failed\r\n");
+        }
+    } else {
+        print_string("TX Failed\r\n");
+    }
+
+    // 3. Wait for sensor to be ready
+    HAL_Delay(1000);
+    print_string("2. Waiting for sensor readiness...\r\n");
+
+    // 4. Try Measure Raw with different approaches
+    for(int attempt = 1; attempt <= 3; attempt++) {
+        print_string("3. Measure Raw (Attempt ");
+        print_int(attempt);
+        print_string(")... ");
+
+        uint16_t raw_value;
+        if(SGP40_ReadRaw(&raw_value) == HAL_OK) {
+            print_string("SUCCESS: Raw=");
+            print_int(raw_value);
+
+            // Calculate TVOC
+            if(raw_value > 20000) {
+                float tvoc_ppb = (raw_value - 20000) / 20.0f;
+                print_string(" (");
+                print_float(tvoc_ppb);
+                print_string(" ppb)");
+            }
+
+            print_string("\r\n");
+            sgp40_initialized = 1;
+            return;  // Success!
+        } else {
+            print_string("FAILED\r\n");
+            HAL_Delay(500);  // Wait before retry
+        }
+    }
+
+    print_string("=== TEST COMPLETE (SGP40 Not Working) ===\r\n");
+}
+
+// I2C Scanner
+void I2C_Scan(void) {
+    uint8_t i, found = 0;
+
+    print_string("I2C Scan: ");
+
+    for(i = 1; i < 128; i++) {
+        if(HAL_I2C_IsDeviceReady(&hi2c1, i << 1, 1, 10) == HAL_OK) {
+            if(found > 0) print_string(", ");
+            print_string("0x");
+            print_hex(i, 2);
+            found++;
+        }
+    }
+
+    if(found == 0) {
+        print_string("No devices found");
+    }
+    print_string("\r\n");
+}
+
+/* USER CODE END PFP */
+
+/* Private user code ---------------------------------------------------------*/
+/* USER CODE BEGIN 0 */
+
+/* USER CODE END 0 */
+
+/**
+  * @brief  The application entry point.
+  * @retval int
+  */
+int main(void)
+{
+  /* USER CODE BEGIN 1 */
+
+  /* USER CODE END 1 */
+
+  /* MCU Configuration--------------------------------------------------------*/
+
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
+
+  /* USER CODE BEGIN Init */
+
+  /* USER CODE END Init */
+
+  /* Configure the system clock */
+  SystemClock_Config();
+
+  /* USER CODE BEGIN SysInit */
+
+  /* USER CODE END SysInit */
+
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_USART2_UART_Init();
+  MX_I2C1_Init();
+  /* USER CODE BEGIN 2 */
+
+  float temperature = 0, humidity = 0;
+  uint16_t voc_raw = 0;
+
+  // Initialize LED
+  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+  HAL_Delay(200);
+  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+
+  print_string("\r\n\r\n================================\r\n");
+  print_string("SHT41 & SGP40 Sensor Reader\r\n");
+  print_string("STM32 I2C + UART VCP\r\n");
+  print_string("================================\r\n\r\n");
+
+  // I2C Scan
+  I2C_Scan();
+
+  // Wait for sensors (SGP40 needs time after power-up)
+  print_string("\r\nInitializing sensors (waiting 3 seconds)...\r\n");
+  HAL_Delay(3000);
+
+  // Run minimal SGP40 test
+  SGP40_MinimalTest();
+
+  // If SGP40 still not initialized, try one more thing
+  if(!sgp40_initialized) {
+      print_string("\r\nTrying alternative approach...\r\n");
+
+      // Send Heater Off command to clear any stuck state
+      uint8_t cmd[2] = {0x36, 0x15};
+      hi2c1.Instance->CR1 |= I2C_CR1_STOP;
+      while(hi2c1.Instance->SR2 & I2C_SR2_BUSY);
+      HAL_Delay(10);
+
+      if(HAL_I2C_Master_Transmit(&hi2c1, SGP40_ADDR << 1, cmd, 2, 100) == HAL_OK) {
+          print_string("Heater Off sent\r\n");
+          HAL_Delay(1000);
+
+          // Try reading again
+          if(SGP40_ReadRaw(&voc_raw) == HAL_OK) {
+              sgp40_initialized = 1;
+              print_string("SGP40 now working!\r\n");
+          }
+      }
+  }
+
+  print_string("\r\nStarting readings:\r\n");
+  print_string("==================\r\n");
+
+  uint32_t error_count = 0;
+  uint32_t success_count = 0;
+
+  /* USER CODE END 2 */
+
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
+  while (1)
+  {
+      // Toggle LED
+      HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+
+      // Read SHT41
+      if(SHT41_Read(&temperature, &humidity) == HAL_OK) {
+          print_string("SHT41: T=");
+          print_float(temperature);
+          print_string("C, H=");
+          print_float(humidity);
+          print_string("%\r\n");
+      } else {
+          print_string("SHT41 Error\r\n");
+      }
+
+      // Read SGP40 if initialized
+      if(sgp40_initialized) {
+          if(SGP40_ReadRaw(&voc_raw) == HAL_OK) {
+              success_count++;
+              print_string("SGP40: Raw=");
+              print_int(voc_raw);
+
+              // Calculate approximate TVOC (ppb)
+              if(voc_raw > 10000 && voc_raw < 60000) {
+                  float tvoc_ppb = (voc_raw - 20000) / 20.0f;
+                  if(tvoc_ppb < 0) tvoc_ppb = 0;
+                  print_string(" (");
+                  print_float(tvoc_ppb);
+                  print_string(" ppb)");
+              }
+
+              print_string(" [OK:");
+              print_int(success_count);
+              print_string("]\r\n");
+              error_count = 0;
+          } else {
+              error_count++;
+              print_string("SGP40 Error [Err:");
+              print_int(error_count);
+              print_string("]\r\n");
+
+              // Reset after too many errors
+              if(error_count > 5) {
+                  sgp40_initialized = 0;
+                  print_string("SGP40 disabled - re-run test\r\n");
+              }
+          }
+      } else {
+          print_string("SGP40: Not available\r\n");
+      }
+
+      print_string("-----\r\n\r\n");
+
+      HAL_Delay(2000);
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
+  }
+  /* USER CODE END 3 */
+}
+
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+void SystemClock_Config(void)
+{
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+  /** Configure the main internal regulator output voltage
+  */
+  __HAL_RCC_PWR_CLK_ENABLE();
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
+
+  /** Initializes the RCC Oscillators according to the specified parameters
+  * in the RCC_OscInitTypeDef structure.
+  */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = 16;
+  RCC_OscInitStruct.PLL.PLLN = 336;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+  RCC_OscInitStruct.PLL.PLLQ = 2;
+  RCC_OscInitStruct.PLL.PLLR = 2;
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Initializes the CPU, AHB and APB buses clocks
+  */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 50000;  // SLOWER: 50kHz for better reliability
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  // Enable I2C interrupts for better error handling
+  __HAL_I2C_ENABLE_IT(&hi2c1, I2C_IT_ERR);
+
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+}
+
+/**
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART2_UART_Init(void)
+{
+  /* USER CODE BEGIN USART2_Init 0 */
+
+  /* USER CODE END USART2_Init 0 */
+
+  /* USER CODE BEGIN USART2_Init 1 */
+
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART2_Init 2 */
+
+  /* USER CODE END USART2_Init 2 */
+}
+
+/**
+  * @brief GPIO Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_GPIO_Init(void)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+/* USER CODE BEGIN MX_GPIO_Init_1 */
+/* USER CODE END MX_GPIO_Init_1 */
+
+  /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOH_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : B1_Pin */
+  GPIO_InitStruct.Pin = B1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LD2_Pin */
+  GPIO_InitStruct.Pin = LD2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+
+/* USER CODE BEGIN MX_GPIO_Init_2 */
+/* USER CODE END MX_GPIO_Init_2 */
+}
+
+/* USER CODE BEGIN 4 */
+// I2C Error Callback
+void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c) {
+    uint32_t error_code = HAL_I2C_GetError(hi2c);
+
+    if(error_code != HAL_I2C_ERROR_NONE) {
+        print_string("I2C Error: 0x");
+        print_hex(error_code, 8);
+        print_string("\r\n");
+
+        // Clear flags and reset bus on serious errors
+        if(error_code & (HAL_I2C_ERROR_BERR | HAL_I2C_ERROR_ARLO | HAL_I2C_ERROR_AF)) {
+            print_string("Resetting I2C bus...\r\n");
+
+            // Generate STOP
+            hi2c->Instance->CR1 |= I2C_CR1_STOP;
+
+            // Clear error flags
+            __HAL_I2C_CLEAR_FLAG(hi2c, I2C_FLAG_BERR);
+            __HAL_I2C_CLEAR_FLAG(hi2c, I2C_FLAG_ARLO);
+            __HAL_I2C_CLEAR_FLAG(hi2c, I2C_FLAG_AF);
+
+            // Reset and reinitialize
+            HAL_I2C_DeInit(hi2c);
+            HAL_Delay(10);
+            HAL_I2C_Init(hi2c);
+        }
+    }
+}
+/* USER CODE END 4 */
+
+/**
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
+void Error_Handler(void)
+{
+  /* USER CODE BEGIN Error_Handler_Debug */
+  /* User can add his own implementation to report the HAL error return state */
+  __disable_irq();
+  while (1)
+  {
+  }
+  /* USER CODE END Error_Handler_Debug */
+}
+
+#ifdef  USE_FULL_ASSERT
+/**
+  * @brief  Reports the name of the source file and the source line number
+  * @param  file: pointer to the source file name
+  * @param  line: assert_param error line source number
+  * @retval None
+  */
+void assert_failed(uint8_t *file, uint32_t line)
+{
+  /* USER CODE BEGIN 6 */
+  /* User can add his own implementation to report the file name and line number,
+     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+  /* USER CODE END 6 */
+}
+#endif /* USE_FULL_ASSERT */
