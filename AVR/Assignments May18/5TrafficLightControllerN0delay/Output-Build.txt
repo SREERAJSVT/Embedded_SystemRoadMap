@@ -1,0 +1,23 @@
+﻿------ Build started: Project: 15BMP280OLEDDisplayI2C, Configuration: Debug AVR ------
+Build started.
+Project "15BMP280OLEDDisplayI2C.cproj" (default targets):
+Target "PreBuildEvent" skipped, due to false condition; ('$(PreBuildEvent)'!='') was evaluated as (''!='').
+Target "CoreBuild" in file "C:\Program Files (x86)\Atmel\Studio\7.0\Vs\Compiler.targets" from project "C:\Users\sreer\OneDrive\Documents\GitHub\Embedded_SystemRoadMap\AVR\Assignments May18\15BMP280OLEDDisplayI2C\15BMP280OLEDDisplayI2C\15BMP280OLEDDisplayI2C.cproj" (target "Build" depends on it):
+	Task "RunCompilerTask"
+		Shell Utils Path C:\Program Files (x86)\Atmel\Studio\7.0\shellUtils
+		C:\Program Files (x86)\Atmel\Studio\7.0\shellUtils\make.exe all --jobs 16 --output-sync 
+		make: Nothing to be done for 'all'.
+	Done executing task "RunCompilerTask".
+	Task "RunOutputFileVerifyTask"
+				Program Memory Usage 	:	3704 bytes   11.3 % Full
+				Data Memory Usage 		:	22 bytes   1.1 % Full
+				Warning: Memory Usage estimation may not be accurate if there are sections other than .text sections in ELF file
+	Done executing task "RunOutputFileVerifyTask".
+Done building target "CoreBuild" in project "15BMP280OLEDDisplayI2C.cproj".
+Target "PostBuildEvent" skipped, due to false condition; ('$(PostBuildEvent)' != '') was evaluated as ('' != '').
+Target "Build" in file "C:\Program Files (x86)\Atmel\Studio\7.0\Vs\Avr.common.targets" from project "C:\Users\sreer\OneDrive\Documents\GitHub\Embedded_SystemRoadMap\AVR\Assignments May18\15BMP280OLEDDisplayI2C\15BMP280OLEDDisplayI2C\15BMP280OLEDDisplayI2C.cproj" (entry point):
+Done building target "Build" in project "15BMP280OLEDDisplayI2C.cproj".
+Done building project "15BMP280OLEDDisplayI2C.cproj".
+
+Build succeeded.
+========== Build: 1 succeeded or up-to-date, 0 failed, 0 skipped ==========

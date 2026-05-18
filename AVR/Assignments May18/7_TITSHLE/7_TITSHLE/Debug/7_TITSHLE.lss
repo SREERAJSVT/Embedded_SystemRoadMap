@@ -1,0 +1,188 @@
+
+7_TITSHLE.elf:     file format elf32-avr
+
+Sections:
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 .data         00000000  00800100  00800100  0000016e  2**0
+                  CONTENTS, ALLOC, LOAD, DATA
+  1 .text         0000011a  00000000  00000000  00000054  2**1
+                  CONTENTS, ALLOC, LOAD, READONLY, CODE
+  2 .comment      00000030  00000000  00000000  0000016e  2**0
+                  CONTENTS, READONLY
+  3 .note.gnu.avr.deviceinfo 00000040  00000000  00000000  000001a0  2**2
+                  CONTENTS, READONLY
+  4 .debug_aranges 00000030  00000000  00000000  000001e0  2**0
+                  CONTENTS, READONLY, DEBUGGING
+  5 .debug_info   000006b3  00000000  00000000  00000210  2**0
+                  CONTENTS, READONLY, DEBUGGING
+  6 .debug_abbrev 00000610  00000000  00000000  000008c3  2**0
+                  CONTENTS, READONLY, DEBUGGING
+  7 .debug_line   0000023d  00000000  00000000  00000ed3  2**0
+                  CONTENTS, READONLY, DEBUGGING
+  8 .debug_frame  0000006c  00000000  00000000  00001110  2**2
+                  CONTENTS, READONLY, DEBUGGING
+  9 .debug_str    0000038f  00000000  00000000  0000117c  2**0
+                  CONTENTS, READONLY, DEBUGGING
+ 10 .debug_loc    00000092  00000000  00000000  0000150b  2**0
+                  CONTENTS, READONLY, DEBUGGING
+ 11 .debug_ranges 00000020  00000000  00000000  0000159d  2**0
+                  CONTENTS, READONLY, DEBUGGING
+
+Disassembly of section .text:
+
+00000000 <__vectors>:
+   0:	0c 94 34 00 	jmp	0x68	; 0x68 <__ctors_end>
+   4:	0c 94 3e 00 	jmp	0x7c	; 0x7c <__bad_interrupt>
+   8:	0c 94 3e 00 	jmp	0x7c	; 0x7c <__bad_interrupt>
+   c:	0c 94 3e 00 	jmp	0x7c	; 0x7c <__bad_interrupt>
+  10:	0c 94 3e 00 	jmp	0x7c	; 0x7c <__bad_interrupt>
+  14:	0c 94 3e 00 	jmp	0x7c	; 0x7c <__bad_interrupt>
+  18:	0c 94 3e 00 	jmp	0x7c	; 0x7c <__bad_interrupt>
+  1c:	0c 94 52 00 	jmp	0xa4	; 0xa4 <__vector_7>
+  20:	0c 94 3e 00 	jmp	0x7c	; 0x7c <__bad_interrupt>
+  24:	0c 94 3e 00 	jmp	0x7c	; 0x7c <__bad_interrupt>
+  28:	0c 94 3e 00 	jmp	0x7c	; 0x7c <__bad_interrupt>
+  2c:	0c 94 40 00 	jmp	0x80	; 0x80 <__vector_11>
+  30:	0c 94 3e 00 	jmp	0x7c	; 0x7c <__bad_interrupt>
+  34:	0c 94 3e 00 	jmp	0x7c	; 0x7c <__bad_interrupt>
+  38:	0c 94 3e 00 	jmp	0x7c	; 0x7c <__bad_interrupt>
+  3c:	0c 94 3e 00 	jmp	0x7c	; 0x7c <__bad_interrupt>
+  40:	0c 94 3e 00 	jmp	0x7c	; 0x7c <__bad_interrupt>
+  44:	0c 94 3e 00 	jmp	0x7c	; 0x7c <__bad_interrupt>
+  48:	0c 94 3e 00 	jmp	0x7c	; 0x7c <__bad_interrupt>
+  4c:	0c 94 3e 00 	jmp	0x7c	; 0x7c <__bad_interrupt>
+  50:	0c 94 3e 00 	jmp	0x7c	; 0x7c <__bad_interrupt>
+  54:	0c 94 3e 00 	jmp	0x7c	; 0x7c <__bad_interrupt>
+  58:	0c 94 3e 00 	jmp	0x7c	; 0x7c <__bad_interrupt>
+  5c:	0c 94 3e 00 	jmp	0x7c	; 0x7c <__bad_interrupt>
+  60:	0c 94 3e 00 	jmp	0x7c	; 0x7c <__bad_interrupt>
+  64:	0c 94 3e 00 	jmp	0x7c	; 0x7c <__bad_interrupt>
+
+00000068 <__ctors_end>:
+  68:	11 24       	eor	r1, r1
+  6a:	1f be       	out	0x3f, r1	; 63
+  6c:	cf ef       	ldi	r28, 0xFF	; 255
+  6e:	d8 e0       	ldi	r29, 0x08	; 8
+  70:	de bf       	out	0x3e, r29	; 62
+  72:	cd bf       	out	0x3d, r28	; 61
+  74:	0e 94 64 00 	call	0xc8	; 0xc8 <main>
+  78:	0c 94 8b 00 	jmp	0x116	; 0x116 <_exit>
+
+0000007c <__bad_interrupt>:
+  7c:	0c 94 00 00 	jmp	0	; 0x0 <__vectors>
+
+00000080 <__vector_11>:
+#define F_CPU 16000000UL
+#include <avr/io.h>
+#include <avr/interrupt.h>
+
+ISR(TIMER1_COMPA_vect)
+{
+  80:	1f 92       	push	r1
+  82:	0f 92       	push	r0
+  84:	0f b6       	in	r0, 0x3f	; 63
+  86:	0f 92       	push	r0
+  88:	11 24       	eor	r1, r1
+  8a:	8f 93       	push	r24
+  8c:	9f 93       	push	r25
+    PORTB ^= (1 << PB1);      // toggle Status LED
+  8e:	95 b1       	in	r25, 0x05	; 5
+  90:	82 e0       	ldi	r24, 0x02	; 2
+  92:	89 27       	eor	r24, r25
+  94:	85 b9       	out	0x05, r24	; 5
+}
+  96:	9f 91       	pop	r25
+  98:	8f 91       	pop	r24
+  9a:	0f 90       	pop	r0
+  9c:	0f be       	out	0x3f, r0	; 63
+  9e:	0f 90       	pop	r0
+  a0:	1f 90       	pop	r1
+  a2:	18 95       	reti
+
+000000a4 <__vector_7>:
+
+ISR(TIMER2_COMPA_vect)
+{
+  a4:	1f 92       	push	r1
+  a6:	0f 92       	push	r0
+  a8:	0f b6       	in	r0, 0x3f	; 63
+  aa:	0f 92       	push	r0
+  ac:	11 24       	eor	r1, r1
+  ae:	8f 93       	push	r24
+  b0:	9f 93       	push	r25
+    PORTB ^= (1 << PB2);      // toggle Heartbeat LED
+  b2:	95 b1       	in	r25, 0x05	; 5
+  b4:	84 e0       	ldi	r24, 0x04	; 4
+  b6:	89 27       	eor	r24, r25
+  b8:	85 b9       	out	0x05, r24	; 5
+}
+  ba:	9f 91       	pop	r25
+  bc:	8f 91       	pop	r24
+  be:	0f 90       	pop	r0
+  c0:	0f be       	out	0x3f, r0	; 63
+  c2:	0f 90       	pop	r0
+  c4:	1f 90       	pop	r1
+  c6:	18 95       	reti
+
+000000c8 <main>:
+
+int main(void)
+{
+    DDRB |= (1 << PB1) | (1 << PB2);
+  c8:	84 b1       	in	r24, 0x04	; 4
+  ca:	86 60       	ori	r24, 0x06	; 6
+  cc:	84 b9       	out	0x04, r24	; 4
+
+    // Timer1: CTC, prescaler 1024, OCR1A = 31249 for 2 s (16M/1024=15625, *2=31250-1)
+    TCCR1B |= (1 << WGM12) | (1 << CS12) | (1 << CS10);  // 1024
+  ce:	e1 e8       	ldi	r30, 0x81	; 129
+  d0:	f0 e0       	ldi	r31, 0x00	; 0
+  d2:	80 81       	ld	r24, Z
+  d4:	8d 60       	ori	r24, 0x0D	; 13
+  d6:	80 83       	st	Z, r24
+    OCR1A = 31249;
+  d8:	81 e1       	ldi	r24, 0x11	; 17
+  da:	9a e7       	ldi	r25, 0x7A	; 122
+  dc:	90 93 89 00 	sts	0x0089, r25	; 0x800089 <__TEXT_REGION_LENGTH__+0x7f8089>
+  e0:	80 93 88 00 	sts	0x0088, r24	; 0x800088 <__TEXT_REGION_LENGTH__+0x7f8088>
+    TIMSK1 |= (1 << OCIE1A);
+  e4:	ef e6       	ldi	r30, 0x6F	; 111
+  e6:	f0 e0       	ldi	r31, 0x00	; 0
+  e8:	80 81       	ld	r24, Z
+  ea:	82 60       	ori	r24, 0x02	; 2
+  ec:	80 83       	st	Z, r24
+
+    // Timer2: CTC, prescaler 128, OCR2A = 124 for 500 ms (16M/128=125k, *0.5=62500, 62500-1 too large->use overflow+prescaler? Need precise: 125k ticks/s, 0.5s = 62500 ticks > 255. Use 1024 prescaler? 16M/1024=15625, 0.5s=7812.5 -> not integer. Use 256 prescaler: 16M/256=62500, OCR2A=125-1=124 for 0.5s? 62500 * 124 = 7,750,000 cycles not correct. Let's compute: with prescaler 256, timer freq = 16M/256 = 62500 Hz. To get 500 ms period, we need 62500*0.5 = 31250 counts. Since timer2 is 8?bit, we can use CTC with OCR2A = 250 (max 255) and prescaler 256, then count = 251 ticks per interrupt. 1/62500 * 251 = 0.004016 s. That's ~4 ms. Not 500 ms. So use prescaler 1024: freq=15625 Hz, to get 500 ms we need 7812.5 counts -> not possible. So implement a software counter. Simpler: use Timer0 overflow? But assignment requires Timer2. Use OCR2A = 124 with prescaler 1024 gives 125 ticks -> 125/15625 = 8 ms. Then count 63 interrupts for 500 ms. I'll demonstrate that.
+    // Actually assignment says "every 500 milliseconds". So I'll use a static counter in ISR.
+    // Set Timer2 CTC, prescaler 1024, OCR2A = 124 ? 8 ms period. Count 62/63 to get ~500 ms.
+    TCCR2A |= (1 << WGM21);            // CTC mode
+  ee:	e0 eb       	ldi	r30, 0xB0	; 176
+  f0:	f0 e0       	ldi	r31, 0x00	; 0
+  f2:	80 81       	ld	r24, Z
+  f4:	82 60       	ori	r24, 0x02	; 2
+  f6:	80 83       	st	Z, r24
+    TCCR2B |= (1 << CS22) | (1 << CS21) | (1 << CS20); // 1024
+  f8:	e1 eb       	ldi	r30, 0xB1	; 177
+  fa:	f0 e0       	ldi	r31, 0x00	; 0
+  fc:	80 81       	ld	r24, Z
+  fe:	87 60       	ori	r24, 0x07	; 7
+ 100:	80 83       	st	Z, r24
+    OCR2A = 124;
+ 102:	8c e7       	ldi	r24, 0x7C	; 124
+ 104:	80 93 b3 00 	sts	0x00B3, r24	; 0x8000b3 <__TEXT_REGION_LENGTH__+0x7f80b3>
+    TIMSK2 |= (1 << OCIE2A);
+ 108:	e0 e7       	ldi	r30, 0x70	; 112
+ 10a:	f0 e0       	ldi	r31, 0x00	; 0
+ 10c:	80 81       	ld	r24, Z
+ 10e:	82 60       	ori	r24, 0x02	; 2
+ 110:	80 83       	st	Z, r24
+
+    sei();
+ 112:	78 94       	sei
+ 114:	ff cf       	rjmp	.-2      	; 0x114 <main+0x4c>
+
+00000116 <_exit>:
+ 116:	f8 94       	cli
+
+00000118 <__stop_program>:
+ 118:	ff cf       	rjmp	.-2      	; 0x118 <__stop_program>

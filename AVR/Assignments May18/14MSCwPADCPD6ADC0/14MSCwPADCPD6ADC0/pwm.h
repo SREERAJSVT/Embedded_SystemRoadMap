@@ -1,0 +1,12 @@
+/*
+ * pwm.h
+ *
+ * Created: 18-05-2026 23:41:55
+ *  Author: sreer
+ */ 
+#ifndef PWM_H_
+#define PWM_H_
+#include <avr/io.h>
+void pwm_init(void);
+void pwm_set_duty(uint8_t duty);  // 0-255
+#endif /* PWM_H_ */H_ */
